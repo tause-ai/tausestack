@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: tausestack
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: changeme
+        ports: [5432:5432]
+      redis:
+        image: redis:7
+        ports: [6379:6379]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+      - name: Run linters (backend)
+        run: |
+          pre-commit run --all-files || true
+          ruff check .
+          black --check .
+      - name: Run linters (frontend)
+        run: |
+          cd frontend
+          npm run lint
+          npm run format
+      - name: Run backend tests
+        run: pytest
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test || true

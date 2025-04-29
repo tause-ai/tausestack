@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.env
+.env.*
+
+# Node
+node_modules/
+.next/
+
+# Docker
+postgres_data/
+
+# VSCode
+.vscode/
