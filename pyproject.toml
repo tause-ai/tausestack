@@ -8,6 +8,9 @@ include = '\.pyi?$'
 "Bug Tracker" = "https://github.com/felipetause/tausestack/issues"
 "Documentation" = "https://docs.tause.co"
 
+[project.scripts]
+tause = "cli.main:cli"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

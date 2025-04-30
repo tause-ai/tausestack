@@ -34,8 +34,24 @@ TauseStack es un framework modular y flexible diseñado para acelerar el desarro
 - Python 3.11+
 - Node.js 18+
 
+## Instalación del CLI
+
+Instala el CLI de TauseStack globalmente desde el directorio raíz del repositorio:
+
+```bash
+pip install .
+```
+
+Esto habilitará el comando global `tause` en tu terminal.
+
 ## Inicio rápido
-Consulta la [Guía Rápida](docs/guides/quickstart.md) para empezar en minutos.
+Consulta la [Guía Rápida](docs/guides/quickstart.md) para empezar en minutos, o ejecuta:
+
+```bash
+tause init my-app --type website
+cd my-app
+tause dev
+```
 
 ## Estructura del proyecto
 Ver documentación en `/docs` y comentarios en cada carpeta.
