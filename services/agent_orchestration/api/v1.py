@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from shared.models import APIResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 router = APIRouter()
 
@@ -17,13 +17,13 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 from typing import Dict, Any
 
 from typing import Optional
-
 class WorkflowStep(BaseModel):
     agent: str
     prompt: str
     model: str = "claude-v1"
     condition: Optional[str] = None  # Expresión booleana sobre el historial, ej: "steps[0]['output']['response'] == 'ok'"
     parallel_group: Optional[str] = None  # Identificador para ejecución paralela
+
 class OrchestrationRequest(BaseModel):
     workflow: str
     steps: List[WorkflowStep]
@@ -41,7 +41,7 @@ import threading
 @router.post("/workflows/execute", response_model=APIResponse, tags=["workflows"])
 def execute_workflow(request: OrchestrationRequest, current_user=Depends(get_current_user)):
     """
-    Ejecuta un workflow multi-agente avanzado:
+    Ejecuta un workflow multi-agente avanzado y registra la ejecución en el historial.
     - Permite ejecución secuencial, condicional y paralela de pasos.
     - Cada paso puede tener un campo 'condition' (expresión booleana sobre el historial) y 'parallel_group' (identificador de grupo paralelo).
     - Se retorna el historial completo de ejecución.
@@ -49,6 +49,8 @@ def execute_workflow(request: OrchestrationRequest, current_user=Depends(get_cur
     """
     history = []
     step_results = []
+    exec_id = str(uuid.uuid4())
+    started_at = datetime.utcnow().isoformat()
     try:
         with httpx.Client() as client:
             # Agrupar pasos por parallel_group (None = secuencial)
@@ -102,12 +104,34 @@ def execute_workflow(request: OrchestrationRequest, current_user=Depends(get_cur
                 for res in group_results:
                     if res: history.append(res)
     except Exception as e:
+        # Registrar error en historial
+        ExecutionHistory.save_execution({
+            "id": exec_id,
+            "workflow": request.workflow,
+            "input_data": request.input_data,
+            "steps": [s.dict() for s in request.steps],
+            "history": history,
+            "error": str(e),
+            "started_at": started_at,
+            "finished_at": datetime.utcnow().isoformat()
+        })
         raise HTTPException(status_code=500, detail=f"Error llamando a MCP Client: {str(e)}")
+    # Guardar ejecución exitosa
+    ExecutionHistory.save_execution({
+        "id": exec_id,
+        "workflow": request.workflow,
+        "input_data": request.input_data,
+        "steps": [s.dict() for s in request.steps],
+        "history": history,
+        "started_at": started_at,
+        "finished_at": datetime.utcnow().isoformat()
+    })
     return APIResponse(
         success=True,
         message=f"Workflow '{request.workflow}' ejecutado con {len(history)} pasos (secuenciales/paralelos)",
         data={
             "steps": history,
-            "input_data": request.input_data
+            "input_data": request.input_data,
+            "execution_id": exec_id
         }
     )

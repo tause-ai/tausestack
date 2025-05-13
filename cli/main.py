@@ -28,14 +28,34 @@ def check_dependencies():
 @cli.command()
 @click.argument('name')
 @click.option('--type', default='website', 
-              type=click.Choice(['website', 'crm', 'ecommerce', 'chatbot', 'agent']),
+              type=click.Choice(['website', 'crm', 'ecommerce', 'chatbot', 'agent', 'fastapi-supabase']),
               help='Tipo de proyecto a crear')
 def init(name, type):
     check_dependencies()
     click.echo(f"Creando proyecto {name} de tipo {type}...")
     # Copiar template base
     template_path = os.path.join(os.path.dirname(__file__), f"../templates/{type}")
+    
+    if not os.path.exists(template_path):
+        click.echo(f"Error: El template '{type}' no existe.")
+        return
+    
+    # Copiar template al directorio destino
     shutil.copytree(template_path, name)
+    
+    # Configuraciones específicas según el tipo de proyecto
+    if type == 'fastapi-supabase':
+        click.echo("Configurando proyecto FastAPI con Supabase...")
+        # Crear .env de ejemplo
+        env_example = os.path.join(name, '.env')
+        with open(env_example, 'w') as f:
+            f.write("SUPABASE_URL=https://tu-proyecto.supabase.co\n")
+            f.write("SUPABASE_KEY=tu-api-key-publica-de-supabase\n")
+        
+        click.echo("Proyecto FastAPI con Supabase creado. Recuerda:")
+        click.echo("1. Configura tus credenciales de Supabase en el archivo .env")
+        click.echo("2. Crea las tablas necesarias en Supabase (ver README.md)")
+    
     click.echo(f"Proyecto {name} creado exitosamente!")
     click.echo(f"Para iniciar: cd {name} && tause dev")
 

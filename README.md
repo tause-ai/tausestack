@@ -1,4 +1,4 @@
-# TauseStack
+# TauseStack Framework
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -8,19 +8,36 @@
 ## 🚀 Resumen Ejecutivo
 
 **Versión:** 0.1.0  
-**Fecha:** 2025-04-29  
+**Fecha:** 2025-05-12  
 **Repositorio:** [github.com/felipetause/tausestack](https://github.com/felipetause/tausestack)  
 **Documentación:** [docs.tause.co](https://docs.tause.co)  
 **Contacto:** [felipe@tause.co](mailto:felipe@tause.co)
 
-TauseStack es un framework modular y flexible diseñado para acelerar el desarrollo de aplicaciones web, CRMs, e-commerce, chatbots y agentes IA. Construido con tecnologías modernas y siguiendo las mejores prácticas de la industria, proporciona una base sólida para proyectos de cualquier escala.
+TauseStack es un **framework de desarrollo** modular y flexible diseñado para crear aplicaciones de cualquier tipo. A diferencia de una aplicación específica, TauseStack proporciona las abstracciones, interfaces y utilidades necesarias para construir soluciones personalizadas de forma rápida y mantenible.
 
-- **Modularidad:** Arquitectura basada en módulos independientes pero integrables
-- **CLI potente:** Automatiza tareas comunes
-- **Templates preconstruidos:** Para distintos tipos de aplicaciones
+- **Interfaces abstractas:** Define contratos claros para implementaciones concretas
+- **Modularidad:** Componentes independientes pero integrables
+- **CLI potente:** Automatiza tareas comunes de desarrollo
+- **Extensibilidad:** Fácil de adaptar a necesidades específicas
 - **Stack moderno:** FastAPI, Next.js, Docker, TypeScript
 - **Calidad de código:** Linters, formateadores y pruebas automatizadas
-- **Documentación completa:** Para desarrolladores y usuarios finales
+
+## Componentes Principales
+
+### Core
+- **CLI:** Herramientas de línea de comandos para gestionar proyectos
+- **Secrets:** Sistema seguro para gestionar credenciales
+- **Utilidades:** Funciones y clases de ayuda comunes
+
+### MCP (Multi-Call Protocol)
+- **Interfaces:** Contratos para clientes y servidores MCP
+- **Adaptadores:** Implementaciones para proveedores específicos
+- **Mensajería:** Modelos estándar para comunicación
+
+### Pasarelas de Pago
+- **Interfaces:** Abstracciones para diferentes proveedores de pago
+- **Adaptadores:** Implementaciones para pasarelas específicas
+- **Transacciones:** Modelos estándar independientes del proveedor
 
 ---
 

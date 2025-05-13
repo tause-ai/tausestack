@@ -1,10 +1,10 @@
 import httpx
 from typing import Any, Dict, List, Optional
-from ...core.base_client import BaseMCPClient
-from ...core.base_message import MCPMessage, MCPBatchRequest, MCPBatchResponse
-from ...core.exceptions import MCPProviderError
+from ...interfaces.mcp_client import MCPClient
+from ...interfaces.mcp_message import MCPMessage, MCPBatchRequest, MCPBatchResponse
+from ...interfaces.exceptions import MCPProviderError
 
-class AnthropicMCPClient(BaseMCPClient):
+class AnthropicMCPClient(MCPClient):
     """Cliente MCP para Claude (Anthropic) siguiendo el protocolo MCP."""
     def __init__(self, api_key: str, base_url: str = "https://api.anthropic.com", **kwargs):
         super().__init__(api_key, **kwargs)
@@ -45,6 +45,38 @@ class AnthropicMCPClient(BaseMCPClient):
     async def close(self):
         await self.client.aclose()
 
+    async def initialize(self, config: Dict[str, Any]) -> bool:
+        """Inicializa el cliente con la configuración proporcionada."""
+        try:
+            if "api_key" in config:
+                self.api_key = config["api_key"]
+                self.client.headers.update({"x-api-key": self.api_key})
+            if "base_url" in config:
+                self.base_url = config["base_url"]
+            return True
+        except Exception:
+            return False
+            
+    async def list_tools(self) -> List[Dict[str, Any]]:
+        """Obtiene las herramientas disponibles en la API de Anthropic."""
+        # Anthropic no tiene un endpoint específico para listar tools
+        # Usualmente se definen en la request, así que devolvemos una lista vacía
+        return []
+    
+    async def call_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Llama a una herramienta específica en la API de Anthropic."""
+        # Anthropic no soporta llamadas directas a tools, se envían como parte del mensaje
+        raise NotImplementedError("Anthropic no soporta llamadas directas a tools")
+    
+    async def get_manifest(self) -> Dict[str, Any]:
+        """Obtiene el manifiesto de la API de Anthropic."""
+        # Anthropic no tiene un manifest específico como otros proveedores MCP
+        return {
+            "provider": "anthropic",
+            "models": self.supported_models,
+            "capabilities": ["chat", "tools"]
+        }
+    
     @property
     def supported_models(self) -> List[str]:
         return [

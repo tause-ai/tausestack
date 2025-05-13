@@ -3,15 +3,15 @@ from fastapi.security import OAuth2PasswordBearer
 from shared.models import User, Organization, Permission, APIResponse
 from pydantic import BaseModel, EmailStr
 from typing import List
-from services.users.api.auth import router as auth_router, users_db, user_passwords
+from sqlalchemy.orm import Session
+from services.users.api.auth import router as auth_router
 from services.users.core.auth import decode_access_token
+from services.users.core.db_session import get_db
 
 router = APIRouter()
 router.include_router(auth_router, prefix="/auth")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
-organizations_db: List[Organization] = []
-permissions_db: List[Permission] = []
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     payload = decode_access_token(token)
@@ -36,24 +36,30 @@ def get_user(user_id: str, current_user: User = Depends(get_current_user)):
 
 # --- Endpoints de organizaciones ---
 @router.post("/organizations", response_model=APIResponse, tags=["organizaciones"])
-def create_org(org: Organization, current_user: User = Depends(get_current_user)):
-    if any(o.name == org.name for o in organizations_db):
+def create_org(org: Organization, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    existing = db.query(Organization).filter(Organization.name == org.name).first()
+    if existing:
         raise HTTPException(status_code=400, detail="La organización ya existe")
-    organizations_db.append(org)
+    db.add(org)
+    db.commit()
+    db.refresh(org)
     return APIResponse(success=True, message="Organización creada", data=org.dict())
 
 @router.get("/organizations", response_model=List[Organization], tags=["organizaciones"])
-def list_orgs(current_user: User = Depends(get_current_user)):
-    return organizations_db
+def list_orgs(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(Organization).all()
 
 # --- Endpoints de permisos ---
 @router.post("/permissions", response_model=APIResponse, tags=["permisos"])
-def create_permission(perm: Permission, current_user: User = Depends(get_current_user)):
-    if any(p.name == perm.name for p in permissions_db):
+def create_permission(perm: Permission, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    existing = db.query(Permission).filter(Permission.name == perm.name).first()
+    if existing:
         raise HTTPException(status_code=400, detail="El permiso ya existe")
-    permissions_db.append(perm)
+    db.add(perm)
+    db.commit()
+    db.refresh(perm)
     return APIResponse(success=True, message="Permiso creado", data=perm.dict())
 
 @router.get("/permissions", response_model=List[Permission], tags=["permisos"])
-def list_permissions(current_user: User = Depends(get_current_user)):
-    return permissions_db
+def list_permissions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(Permission).all()

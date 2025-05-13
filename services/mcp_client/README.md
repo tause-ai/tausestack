@@ -1,34 +1,58 @@
-# MCP Client Service
+# MCP Client Framework
 
-Servicio encargado de la comunicación con proveedores MCP (Anthropic, Google, etc.) y la lógica central para modelos, mensajes y herramientas.
+Librería base para integrar y extender clientes MCP (Multi-Call Protocol) en aplicaciones Tausestack. Esta biblioteca proporciona interfaces abstractas y utilidades para crear adaptadores personalizados para diferentes proveedores MCP (Anthropic, OpenAI, etc.).
 
-## Estructura
-- `api/`: Endpoints RESTful de este microservicio.
-- `core/`: Lógica central y contratos.
-- `providers/`: Integraciones con proveedores externos.
-- `adapters/`: Adaptadores de dominio (ej: marketing, SEO).
-- `tests/`: Pruebas unitarias y de integración.
+## ¿Qué es MCP?
 
-## Convenciones
-- FastAPI, Python 3.11+, tipado estricto.
-- Un endpoint por archivo en `api/`.
-- Documentación Google docstring.
+El Model Context Protocol (MCP) es un estándar que conecta sistemas de IA con herramientas y servicios externos, permitiendo:
 
-## Seguridad y autenticación JWT
-- Todos los endpoints sensibles requieren token JWT válido.
-- En producción, el usuario debe autenticarse en el User Management Service, obtener un token y usarlo en las peticiones.
-- Para pruebas locales, el token dummy aceptado es `testtoken`.
+- Exponer funcionalidades como "herramientas" para modelos de IA
+- Consumir servicios externos a través de una interfaz estandarizada
+- Orquestar flujos de trabajo con herramientas inteligentes
 
-## Ejemplo de consumo
+## Estructura del Framework
 
-### 1. Obtener modelos disponibles (requiere JWT)
-```bash
-curl -H "Authorization: Bearer testtoken" http://localhost:8000/api/v1/models
+- `interfaces/`: Contratos e interfaces abstractas para implementar clientes y servidores MCP
+- `core/`: Lógica central y clases base
+- `adapters/`: Adaptadores de dominio (clases abstractas o utilidades comunes)
+- `providers/`: Ejemplos de integraciones con proveedores específicos
+- `tests/`: Pruebas unitarias y de integración
+
+## Interfaces Principales
+
+### MCPClient
+
+Base para implementar clientes que consumen herramientas MCP externas:
+
+```python
+from services.mcp_client.interfaces.mcp_client import MCPClient
+
+class MyCustomMCPClient(MCPClient):
+    async def initialize(self, config):
+        # Implementación personalizada
+        pass
+        
+    async def list_tools(self):
+        # Obtener herramientas disponibles
+        pass
+        
+    async def call_tool(self, tool_name, params):
+        # Llamar a una herramienta específica
+        pass
 ```
 
-### 2. Enviar mensaje a Anthropic (requiere JWT)
-```bash
-curl -X POST http://localhost:8000/api/v1/anthropic/send \
+### MCPServer
+
+Base para exponer tus propias herramientas como servidor MCP:
+
+```python
+from services.mcp_client.interfaces.mcp_server import MCPServer
+
+class MyCustomMCPServer(MCPServer):
+    async def register_tool(self, tool_name, tool_config):
+        # Registrar una nueva herramienta
+        pass
+```
     -H "Authorization: Bearer testtoken" \
     -H "Content-Type: application/json" \
     -d '{"prompt": "Hola Claude!", "model": "claude-v1"}'

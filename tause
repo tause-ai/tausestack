@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+#!/usr/bin/env python3
+import typer
+import subprocess
+import os
+from core.secrets import get_secret, set_secret, list_secrets
+
+app = typer.Typer(help="CLI para gestionar proyectos Tausestack")
+
+@app.command()
+def create(project_name: str):
+    """Crea la estructura base de un nuevo proyecto Tausestack."""
+    import shutil
+    if os.path.exists(project_name):
+        typer.echo(f"El directorio '{project_name}' ya existe.")
+        raise typer.Exit(code=1)
+    # Estructura de carpetas
+    os.makedirs(os.path.join(project_name, "core"))
+    os.makedirs(os.path.join(project_name, "modules", "demo_module", "api"))
+    os.makedirs(os.path.join(project_name, "modules", "demo_module", "models"))
+    os.makedirs(os.path.join(project_name, "shared"))
+    os.makedirs(os.path.join(project_name, "config"))
+    # Archivos principales
+    with open(os.path.join(project_name, 'main.py'), 'w') as f:
+        f.write("""from fastapi import FastAPI\n\napp = FastAPI(title='Tausestack App')\n\n@app.get('/')\ndef root():\n    return {'message': 'Bienvenido a Tausestack'}\n""")
+    with open(os.path.join(project_name, 'README.md'), 'w') as f:
+        f.write(f"""# {project_name}\n\nProyecto generado con Tausestack CLI\n\n## Estructura\n- core/: lógica central (usuarios, auth, etc)\n- modules/: módulos plug-and-play\n- shared/: modelos y utilidades globales\n- config/: configuración y settings\n\n## Uso\n\n- `./tause start`\n- `./tause secret set CLAVE valor`\n\n""")
+    with open(os.path.join(project_name, '.env'), 'w') as f:
+        f.write("# Secrets y configuración\n")
+    # Ejemplo de módulo demo
+    with open(os.path.join(project_name, 'modules', 'demo_module', 'api', 'routes.py'), 'w') as f:
+        f.write("""from fastapi import APIRouter\nrouter = APIRouter()\n@router.get('/demo')\ndef demo():\n    return {'msg': 'demo ok'}\n""")
+    with open(os.path.join(project_name, 'modules', 'demo_module', 'models', 'schema.py'), 'w') as f:
+        f.write("""from pydantic import BaseModel\nclass Demo(BaseModel):\n    name: str\n""")
+    typer.echo(f"Proyecto '{project_name}' creado con estructura profesional.")
+
+@app.command()
+def start():
+    """Inicia el servidor de desarrollo (FastAPI + Uvicorn)."""
+    typer.echo("Iniciando servidor en http://127.0.0.1:8000 ...")
+    subprocess.run(["uvicorn", "services.users.api.main:app", "--reload"])
+
+@app.command()
+def build():
+    """Prepara el proyecto para producción (placeholder)."""
+    typer.echo("Build: Por ahora, ejecuta migraciones y prepara assets si aplica.")
+    # Aquí puedes agregar comandos reales de build
+
+@app.command()
+def docs():
+    """Abre la documentación local (Swagger UI)."""
+    typer.echo("Abriendo documentación en http://127.0.0.1:8000/docs ...")
+    # Intentar abrir en navegador
+    try:
+        import webbrowser
+        webbrowser.open("http://127.0.0.1:8000/docs")
+    except Exception:
+        typer.echo("No se pudo abrir el navegador automáticamente.")
+
+secret_app = typer.Typer(help="Gestión de secrets para Tausestack")
+
+@app.command()
+def secret():
+    """Grupo de comandos para gestionar secrets."""
+    pass
+
+@secret_app.command("set")
+def set_cmd(key: str, value: str):
+    """Guarda o actualiza un secret."""
+    set_secret(key, value)
+    typer.echo(f"Secret '{key}' guardado correctamente.")
+
+@secret_app.command("get")
+def get_cmd(key: str):
+    """Obtiene el valor de un secret."""
+    value = get_secret(key)
+    if value is not None:
+        typer.echo(value)
+    else:
+        typer.echo(f"Secret '{key}' no encontrado.")
+
+@secret_app.command("list")
+def list_cmd():
+    """Lista todos los secrets definidos."""
+    secrets = list_secrets()
+    if secrets:
+        for k, v in secrets.items():
+            typer.echo(f"{k}={v}")
+    else:
+        typer.echo("No hay secrets definidos.")
+
+app.add_typer(secret_app, name="secret")
+
+@app.command()
+def test():
+    """Ejecuta los tests automáticos con pytest."""
+    typer.echo("Ejecutando tests automáticos...")
+    import subprocess
+    result = subprocess.run(["pytest", "tests/"], capture_output=False)
+    raise typer.Exit(code=result.returncode)
+
+if __name__ == "__main__":
+    app()
