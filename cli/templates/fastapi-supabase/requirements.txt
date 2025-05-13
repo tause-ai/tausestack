@@ -1,0 +1,9 @@
+fastapi==0.95.1
+uvicorn==0.22.0
+pydantic[email]==1.10.7
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+httpx==0.24.0
+python-dotenv==1.0.0
+# Dependencias de TauseStack
+# Estas se instalarán desde el repositorio principal
