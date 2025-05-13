@@ -1,15 +1,34 @@
-[tool.black]
-line-length = 88
-target-version = ['py311']
-include = '\.pyi?$'
+[project]
+name = "tausestack"
+version = "0.2.0"
+description = "Framework modular para desarrollo rápido de aplicaciones"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Tause Team", email = "info@tause.ai"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
 
 [project.urls]
 "Homepage" = "https://www.tause.co"
-"Bug Tracker" = "https://github.com/felipetause/tausestack/issues"
+"Bug Tracker" = "https://github.com/tause-ai/tausestack/issues"
 "Documentation" = "https://docs.tause.co"
 
 [project.scripts]
 tause = "cli.main:cli"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
 
 [build-system]
 requires = ["hatchling"]
@@ -18,4 +37,4 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q"
-testpaths = ["core/modules"]
+testpaths = ["tests"]
