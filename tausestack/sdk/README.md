@@ -180,15 +180,22 @@ La funcionalidad principal para enviar correos se accede a través de `sdk.notif
 
 #### Configuración
 
-El comportamiento del módulo de notificación se puede configurar mediante la siguiente variable de entorno:
+El comportamiento del módulo de notificación se puede configurar mediante las siguientes variables de entorno:
 
 -   `TAUSESTACK_NOTIFY_BACKEND`: Especifica el backend de notificación por defecto.
     -   `'console'` (default): Utiliza `ConsoleNotifyBackend`.
-    -   (Otros backends como `'local_file'`, `'ses'`, `'smtp'` se añadirán en el futuro).
+    -   `'local_file'`: Utiliza `LocalFileNotifyBackend`.
 
 #### Backends
 
--   **`ConsoleNotifyBackend`**: Imprime los detalles del correo electrónico en la consola. Útil para desarrollo y pruebas.
+-   **`ConsoleNotifyBackend`**: Imprime los detalles del correo electrónico en la salida estándar (consola). Es útil para desarrollo y pruebas, ya que no envía correos reales ni requiere configuración adicional.
+
+-   **`LocalFileNotifyBackend`**: Guarda cada notificación como un archivo en el sistema de ficheros local. El contenido del correo (destinatario, asunto, cuerpo, y cualquier `kwargs` adicional) se escribe en un archivo de texto (`.txt`) o HTML (`.html` si se proporciona `body_html`).
+
+    -   **Ruta de almacenamiento**: Los archivos se guardan en el directorio especificado por la variable de entorno `TAUSESTACK_NOTIFY_LOCAL_FILE_PATH`, o en `./.tausestack_notifications` si la variable no está definida.
+    -   **Nombre de archivo**: Se genera un nombre de archivo único utilizando un timestamp y una versión sanitizada del asunto del correo.
+
+    Es útil para desarrollo, pruebas, o para mantener un registro persistente de las notificaciones enviadas en un entorno local sin depender de servicios externos.
 
 #### Ejemplo de Uso
 

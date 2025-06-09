@@ -97,7 +97,7 @@ class TestMainNotify(unittest.TestCase):
             success = notify_main.send_email(to='exception@example.com', subject='Exception Test', body_text='Text')
             self.assertFalse(success)
             mock_log_error.assert_called_once()
-            self.assertIn("Error al enviar notificación: SMTP Error", mock_log_error.call_args[0][0])
+            self.assertIn("Error al enviar notificación con backend ConsoleNotifyBackend: SMTP Error", mock_log_error.call_args[0][0])
 
 if __name__ == '__main__':
     unittest.main()

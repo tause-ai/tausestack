@@ -6,15 +6,16 @@ import os
 import logging
 
 from .base import AbstractNotifyBackend
-from .backends import ConsoleNotifyBackend
+from .backends import ConsoleNotifyBackend, LocalFileNotifyBackend
 # Importar otros backends aquí cuando se implementen
-# from .exceptions import NotifyError, BackendNotConfiguredError
+from .exceptions import NotifyError, BackendNotConfiguredError # Descomentar si se usan
 
 logger = logging.getLogger(__name__)
 
 _notify_backend_instances: Dict[str, AbstractNotifyBackend] = {}
 
 DEFAULT_NOTIFY_BACKEND = 'console'
+DEFAULT_NOTIFY_LOCAL_FILE_PATH = './.tausestack_notifications'
 # DEFAULT_NOTIFY_BACKEND_CONFIG: Dict[str, Dict[str, Any]] = {
 #     'console': {},
 #     'local_file': {'base_path': './.tausestack_notifications'},
@@ -24,18 +25,22 @@ DEFAULT_NOTIFY_BACKEND = 'console'
 
 def _get_notify_backend(backend_name: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> AbstractNotifyBackend:
     effective_backend_name = backend_name or os.getenv('TAUSESTACK_NOTIFY_BACKEND', DEFAULT_NOTIFY_BACKEND)
-    # config_to_use = config or DEFAULT_NOTIFY_BACKEND_CONFIG.get(effective_backend_name, {})
+    config_to_use = config or {}
 
-    # Por ahora, solo instanciamos Console sin configuraciones complejas
-    instance_key = effective_backend_name 
+    instance_key = effective_backend_name
+    if effective_backend_name == 'local_file':
+        base_path = config_to_use.get('base_path', os.getenv('TAUSESTACK_NOTIFY_LOCAL_FILE_PATH', DEFAULT_NOTIFY_LOCAL_FILE_PATH))
+        # Crear una clave de instancia única basada en base_path para permitir múltiples instancias con diferentes rutas
+        path_key_component = base_path.replace('/', '_').replace('.', '_').replace(':', '_')
+        instance_key = f"local_file_path_{path_key_component}" 
 
     if instance_key not in _notify_backend_instances:
         logger.debug(f"Creando nueva instancia para backend de notificación: {instance_key}")
         if effective_backend_name == 'console':
             _notify_backend_instances[instance_key] = ConsoleNotifyBackend()
-        # elif effective_backend_name == 'local_file':
-        #     from .backends import LocalFileNotifyBackend # Importación tardía
-        #     _notify_backend_instances[instance_key] = LocalFileNotifyBackend(**config_to_use)
+        elif effective_backend_name == 'local_file':
+            base_path = config_to_use.get('base_path', os.getenv('TAUSESTACK_NOTIFY_LOCAL_FILE_PATH', DEFAULT_NOTIFY_LOCAL_FILE_PATH))
+            _notify_backend_instances[instance_key] = LocalFileNotifyBackend(base_path=base_path)
         # elif effective_backend_name == 'ses':
         #     # Lógica para SES
         #     pass
@@ -43,9 +48,10 @@ def _get_notify_backend(backend_name: Optional[str] = None, config: Optional[Dic
         #     # Lógica para SMTP
         #     pass
         else:
-            # raise BackendNotConfiguredError(f"Backend de notificación '{effective_backend_name}' no reconocido o no implementado.")
             logger.error(f"Backend de notificación '{effective_backend_name}' no reconocido o no implementado. Usando ConsoleBackend por defecto.")
-            _notify_backend_instances[instance_key] = ConsoleNotifyBackend() # Fallback a consola
+            # Considerar lanzar BackendNotConfiguredError aquí en lugar de hacer fallback silencioso
+            # raise BackendNotConfiguredError(f"Backend de notificación '{effective_backend_name}' no reconocido o no implementado.")
+            _notify_backend_instances[instance_key] = ConsoleNotifyBackend() # Fallback a consola por ahora
     
     return _notify_backend_instances[instance_key]
 
@@ -77,6 +83,7 @@ def send_email(
     """
     if not body_text and not body_html:
         logger.warning("Se intentó enviar un correo sin body_text ni body_html.")
+        # Considerar lanzar ValueError aquí
         # raise ValueError("Se debe proporcionar al menos body_text o body_html.")
         return False
 
@@ -91,7 +98,8 @@ def send_email(
             **kwargs
         )
     except Exception as e:
-        logger.error(f"Error al enviar notificación: {e}", exc_info=True)
+        logger.error(f"Error al enviar notificación con backend {selected_backend.__class__.__name__}: {e}", exc_info=True)
+        # Considerar lanzar NotifyError aquí
         # raise NotifyError(f"Error al enviar notificación: {e}") from e
         return False
 
