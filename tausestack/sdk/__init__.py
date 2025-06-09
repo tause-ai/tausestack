@@ -36,7 +36,18 @@ class SecretsNamespace:
 
 secrets = SecretsNamespace()
 
+class NotifyNamespace:
+    def __init__(self):
+        from .notify import send_email as _send_email
+        self.email = _send_email # Permite sdk.notify.email(...)
+        # Podríamos hacer self.send = _send_email si queremos sdk.notify.send(...)
+        # Pero sdk.notify.email.send(...) es más explícito si tenemos otros tipos de notificaciones.
+        # Por ahora, como solo es email, sdk.notify.email(...) es conciso.
+
+notify = NotifyNamespace()
+
 __all__ = [
     'storage',
     'secrets',
+    'notify',
 ]

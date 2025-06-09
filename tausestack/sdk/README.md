@@ -9,6 +9,7 @@ Actualmente, el SDK incluye los siguientes módulos:
 1.  **Storage (`sdk.storage`)**: Para almacenamiento de objetos JSON.
 2.  **Secrets (`sdk.secrets`)**: Para la gestión segura de secretos.
 3.  **Cache (`sdk.cache`)**: Para cachear resultados de funciones.
+4.  **Notify (`sdk.notify`)**: Para enviar notificaciones (actualmente, correos electrónicos).
 
 ### 1. Módulo de Storage (`sdk.storage`)
 
@@ -158,6 +159,62 @@ print(otra_funcion(123))
 print(otra_funcion(123)) # Debería ser cacheado en disco
 ```
 
+### 4. Módulo de Notify (`sdk.notify`)
+
+Este módulo permite enviar notificaciones, comenzando con correos electrónicos.
+
+#### API (`sdk.notify`)
+
+La funcionalidad principal para enviar correos se accede a través de `sdk.notify.email()`:
+
+-   `sdk.notify.email(to: Union[str, List[str]], subject: str, body_text: Optional[str] = None, body_html: Optional[str] = None, backend: Optional[str] = None, backend_config: Optional[Dict[str, Any]] = None, **kwargs: Any) -> bool`:
+    Envía un correo electrónico.
+    -   `to`: Destinatario (string) o lista de destinatarios (lista de strings).
+    -   `subject`: Asunto del correo.
+    -   `body_text`: Cuerpo del correo en formato de texto plano.
+    -   `body_html`: Cuerpo del correo en formato HTML. Se debe proporcionar `body_text` o `body_html`.
+    -   `backend`: Nombre del backend a utilizar (e.g., `'console'`, `'ses'`, `'smtp'`). Si es `None`, se utiliza el backend configurado por defecto.
+    -   `backend_config`: Un diccionario con configuraciones específicas para el backend (actualmente no se usa para `'console'`).
+    -   `**kwargs`: Argumentos adicionales para pasar al método `send` del backend.
+    -   Retorna `True` si el envío fue exitoso (o simulado exitosamente), `False` en caso contrario.
+
+#### Configuración
+
+El comportamiento del módulo de notificación se puede configurar mediante la siguiente variable de entorno:
+
+-   `TAUSESTACK_NOTIFY_BACKEND`: Especifica el backend de notificación por defecto.
+    -   `'console'` (default): Utiliza `ConsoleNotifyBackend`.
+    -   (Otros backends como `'local_file'`, `'ses'`, `'smtp'` se añadirán en el futuro).
+
+#### Backends
+
+-   **`ConsoleNotifyBackend`**: Imprime los detalles del correo electrónico en la consola. Útil para desarrollo y pruebas.
+
+#### Ejemplo de Uso
+
+```python
+from tausestack import sdk
+
+# Enviar un correo simple usando el backend por defecto (consola)
+success = sdk.notify.email(
+    to='test@example.com',
+    subject='Prueba de Notificación',
+    body_text='Este es un correo de prueba desde el SDK de TauseStack.'
+)
+
+if success:
+    print("Correo (simulado) enviado exitosamente.")
+else:
+    print("Falló el envío del correo (simulado).")
+
+# Enviar a múltiples destinatarios con cuerpo HTML
+success_html = sdk.notify.email(
+    to=['user1@example.com', 'user2@example.com'],
+    subject='Notificación HTML Importante',
+    body_html='<h1>Título Importante</h1><p>Este es un mensaje con <b>formato HTML</b>.</p>'
+)
+```
+
 ## Logging en el SDK
 
 El SDK de TauseStack utiliza el módulo `logging` estándar de Python para registrar información sobre sus operaciones y posibles errores.
@@ -199,6 +256,8 @@ Puedes configurar la verbosidad y los handlers para loggers específicos dentro 
 -   `tausestack.sdk.storage.backends`: Logs específicos de los backends `LocalJsonStorage` y `S3JsonStorage`.
 -   `tausestack.sdk.secrets.main`: Logs relacionados con la función `get_secret` y la selección del proveedor de secretos.
 -   `tausestack.sdk.secrets.providers`: Logs específicos de los proveedores `EnvironmentVariablesProvider` y `AWSSecretsManagerProvider`.
+-   `tausestack.sdk.notify.main`: Logs relacionados con la función `send_email` y la selección del backend de notificación.
+-   `tausestack.sdk.notify.backends`: Logs específicos de los backends de notificación (e.g., `ConsoleNotifyBackend`).
 -   `tausestack.sdk.cache.main`: Logs relacionados con el decorador `@cached` y la selección/gestión de backends de caché.
 -   `tausestack.sdk.cache.backends`: Logs específicos de `MemoryCacheBackend`, `DiskCacheBackend` y `RedisCacheBackend`.
 
