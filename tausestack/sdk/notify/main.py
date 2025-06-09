@@ -6,7 +6,7 @@ import os
 import logging
 
 from .base import AbstractNotifyBackend
-from .backends import ConsoleNotifyBackend, LocalFileNotifyBackend
+from .backends import ConsoleNotifyBackend, LocalFileNotifyBackend, SESNotifyBackend, BOTO3_AVAILABLE
 # Importar otros backends aquí cuando se implementen
 from .exceptions import NotifyError, BackendNotConfiguredError # Descomentar si se usan
 
@@ -16,6 +16,8 @@ _notify_backend_instances: Dict[str, AbstractNotifyBackend] = {}
 
 DEFAULT_NOTIFY_BACKEND = 'console'
 DEFAULT_NOTIFY_LOCAL_FILE_PATH = './.tausestack_notifications'
+DEFAULT_NOTIFY_SES_SOURCE_EMAIL = os.getenv('TAUSESTACK_NOTIFY_SES_SOURCE_EMAIL', None)
+DEFAULT_NOTIFY_SES_AWS_REGION = os.getenv('TAUSESTACK_NOTIFY_SES_AWS_REGION', None)
 # DEFAULT_NOTIFY_BACKEND_CONFIG: Dict[str, Dict[str, Any]] = {
 #     'console': {},
 #     'local_file': {'base_path': './.tausestack_notifications'},
@@ -31,8 +33,22 @@ def _get_notify_backend(backend_name: Optional[str] = None, config: Optional[Dic
     if effective_backend_name == 'local_file':
         base_path = config_to_use.get('base_path', os.getenv('TAUSESTACK_NOTIFY_LOCAL_FILE_PATH', DEFAULT_NOTIFY_LOCAL_FILE_PATH))
         # Crear una clave de instancia única basada en base_path para permitir múltiples instancias con diferentes rutas
-        path_key_component = base_path.replace('/', '_').replace('.', '_').replace(':', '_')
-        instance_key = f"local_file_path_{path_key_component}" 
+        path_key_component = base_path.replace('/', '_').replace('.', '_').replace(':', '_') # Simplificar esto si es posible
+        instance_key = f"local_file_path_{path_key_component}"
+    elif effective_backend_name == 'ses':
+        # Para SES, la clave de instancia podría basarse en source_email y región si se permiten múltiples configuraciones
+        # Por ahora, una instancia global es suficiente si la configuración es global vía env vars o una única config.
+        # Si se pasan aws_access_key_id/aws_secret_access_key en config, la clave debería incluirlos para ser única.
+        source_email = config_to_use.get('source_email', DEFAULT_NOTIFY_SES_SOURCE_EMAIL)
+        aws_region = config_to_use.get('aws_region', DEFAULT_NOTIFY_SES_AWS_REGION)
+        aws_access_key_id = config_to_use.get('aws_access_key_id') # No hay default para credenciales directas
+        aws_secret_access_key = config_to_use.get('aws_secret_access_key')
+        
+        # Construir una clave de instancia más específica si se usan credenciales directas
+        if aws_access_key_id and aws_secret_access_key:
+            instance_key = f"ses_{source_email}_{aws_region}_{aws_access_key_id[:5]}" # Usar parte del access key para unicidad
+        else:
+            instance_key = f"ses_{source_email}_{aws_region}" 
 
     if instance_key not in _notify_backend_instances:
         logger.debug(f"Creando nueva instancia para backend de notificación: {instance_key}")
@@ -41,6 +57,32 @@ def _get_notify_backend(backend_name: Optional[str] = None, config: Optional[Dic
         elif effective_backend_name == 'local_file':
             base_path = config_to_use.get('base_path', os.getenv('TAUSESTACK_NOTIFY_LOCAL_FILE_PATH', DEFAULT_NOTIFY_LOCAL_FILE_PATH))
             _notify_backend_instances[instance_key] = LocalFileNotifyBackend(base_path=base_path)
+        elif effective_backend_name == 'ses':
+            if not BOTO3_AVAILABLE:
+                logger.error("Intento de usar SESNotifyBackend pero boto3 no está disponible. Usando ConsoleBackend.")
+                _notify_backend_instances[instance_key] = ConsoleNotifyBackend()
+            else:
+                source_email = config_to_use.get('source_email', DEFAULT_NOTIFY_SES_SOURCE_EMAIL)
+                aws_region = config_to_use.get('aws_region', DEFAULT_NOTIFY_SES_AWS_REGION)
+                aws_access_key_id = config_to_use.get('aws_access_key_id')
+                aws_secret_access_key = config_to_use.get('aws_secret_access_key')
+
+                if not source_email:
+                    logger.error("TAUSESTACK_NOTIFY_SES_SOURCE_EMAIL no está configurado. No se puede usar SESNotifyBackend. Usando ConsoleBackend.")
+                    _notify_backend_instances[instance_key] = ConsoleNotifyBackend()
+                else:
+                    try:
+                        _notify_backend_instances[instance_key] = SESNotifyBackend(
+                            source_email=source_email,
+                            aws_region=aws_region,
+                            aws_access_key_id=aws_access_key_id,
+                            aws_secret_access_key=aws_secret_access_key
+                        )
+                    except ImportError: # Ya logueado por el constructor de SESNotifyBackend
+                        _notify_backend_instances[instance_key] = ConsoleNotifyBackend()
+                    except Exception as e: # Captura errores de credenciales/configuración de SES
+                        logger.error(f"Error al inicializar SESNotifyBackend ({e}). Usando ConsoleBackend.")
+                        _notify_backend_instances[instance_key] = ConsoleNotifyBackend()
         # elif effective_backend_name == 'ses':
         #     # Lógica para SES
         #     pass

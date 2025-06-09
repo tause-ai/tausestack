@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Tause Team", email = "info@tause.ai"}
+    {name = "Tause Team", email = "hola@tause.co"}
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -38,7 +38,7 @@ dev = [
     "ruff>=0.1.0"
 ]
 test = [
-    "moto[s3,secretsmanager] >=4.0.0,<6.0.0"
+    "moto[s3,secretsmanager,ses] >=4.0.0,<6.0.0"
 ]
 
 [project.urls]

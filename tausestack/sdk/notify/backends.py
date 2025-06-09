@@ -31,6 +31,107 @@ def _sanitize_filename(name: str) -> str:
 
     return name[:100] # Limitar longitud
 
+try:
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError, PartialCredentialsError
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
+    # Definir stubs para ClientError si boto3 no está disponible, para que el type hinting no falle
+    class ClientError(Exception):
+        pass
+
+class SESNotifyBackend(AbstractNotifyBackend):
+    """Backend de notificación que envía mensajes usando AWS Simple Email Service (SES)."""
+
+    def __init__(self, source_email: str, aws_region: Optional[str] = None, aws_access_key_id: Optional[str] = None, aws_secret_access_key: Optional[str] = None):
+        if not BOTO3_AVAILABLE:
+            logger.error("El paquete boto3 no está instalado. SESNotifyBackend no puede funcionar.")
+            raise ImportError("boto3 es requerido para SESNotifyBackend. Instálalo con 'pip install boto3'.")
+
+        self.source_email = source_email
+        self.aws_region = aws_region
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        
+        try:
+            # Si se proporcionan credenciales explícitas, usarlas.
+            # De lo contrario, boto3 buscará en variables de entorno, roles IAM, etc.
+            session_params = {}
+            if aws_region:
+                session_params['region_name'] = aws_region
+            if aws_access_key_id and aws_secret_access_key:
+                session_params['aws_access_key_id'] = aws_access_key_id
+                session_params['aws_secret_access_key'] = aws_secret_access_key
+            
+            if session_params:
+                session = boto3.Session(**session_params)
+                self.client = session.client('ses')
+            else:
+                # Permitir que boto3 determine la región y credenciales por defecto
+                self.client = boto3.client('ses', region_name=self.aws_region if self.aws_region else None)
+            
+            # Verificar si las credenciales son válidas intentando una operación no destructiva
+            # (esto es opcional, pero puede ayudar a detectar problemas de configuración temprano)
+            # self.client.get_send_quota() 
+
+        except (NoCredentialsError, PartialCredentialsError) as e:
+            logger.error(f"Error de credenciales de AWS al inicializar SESNotifyBackend: {e}")
+            raise
+        except ClientError as e:
+            logger.error(f"Error de cliente AWS (posiblemente región incorrecta o permisos) al inicializar SESNotifyBackend: {e}")
+            raise
+        except Exception as e: # Captura más general para problemas inesperados
+            logger.error(f"Error inesperado al inicializar el cliente SES: {e}")
+            raise
+
+    def send(
+        self,
+        to: Union[str, List[str]],
+        subject: str,
+        body_text: Optional[str] = None,
+        body_html: Optional[str] = None,
+        **kwargs: Any # Podría usarse para Reply-To, CC, BCC, etc. en el futuro
+    ) -> bool:
+        if not self.client:
+            logger.error("Cliente SES no inicializado. No se puede enviar el correo.")
+            return False
+
+        if not body_text and not body_html:
+            logger.warning("Se intentó enviar un correo vía SES sin body_text ni body_html.")
+            return False
+
+        destinations = to if isinstance(to, list) else [to]
+        
+        message_body = {}
+        if body_text:
+            message_body['Text'] = {'Data': body_text, 'Charset': 'UTF-8'}
+        if body_html:
+            message_body['Html'] = {'Data': body_html, 'Charset': 'UTF-8'}
+
+        try:
+            response = self.client.send_email(
+                Source=self.source_email,
+                Destination={'ToAddresses': destinations},
+                Message={
+                    'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                    'Body': message_body
+                },
+                # Se podrían añadir ReplyToAddresses, ConfigurationSetName, etc. aquí desde kwargs si es necesario
+            )
+            logger.info(f"Correo enviado vía SES. Message ID: {response.get('MessageId')}")
+            return True
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code')
+            error_message = e.response.get('Error', {}).get('Message')
+            logger.error(f"Error al enviar correo vía SES ({error_code}): {error_message}")
+            # Podríamos querer manejar errores específicos como 'MessageRejected' o 'MailFromDomainNotVerifiedException'
+            # de manera diferente si fuera necesario.
+            return False
+        except Exception as e:
+            logger.error(f"Error inesperado al enviar correo vía SES: {e}", exc_info=True)
+            return False
+
 class LocalFileNotifyBackend(AbstractNotifyBackend):
     """Backend de notificación que guarda los detalles del mensaje en un archivo local."""
 

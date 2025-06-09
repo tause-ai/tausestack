@@ -185,6 +185,7 @@ El comportamiento del módulo de notificación se puede configurar mediante las 
 -   `TAUSESTACK_NOTIFY_BACKEND`: Especifica el backend de notificación por defecto.
     -   `'console'` (default): Utiliza `ConsoleNotifyBackend`.
     -   `'local_file'`: Utiliza `LocalFileNotifyBackend`.
+    -   `'ses'`: Utiliza `SESNotifyBackend`.
 
 #### Backends
 
@@ -196,6 +197,38 @@ El comportamiento del módulo de notificación se puede configurar mediante las 
     -   **Nombre de archivo**: Se genera un nombre de archivo único utilizando un timestamp y una versión sanitizada del asunto del correo.
 
     Es útil para desarrollo, pruebas, o para mantener un registro persistente de las notificaciones enviadas en un entorno local sin depender de servicios externos.
+
+-   **`SESNotifyBackend`**: Envía correos electrónicos utilizando AWS Simple Email Service (SES). Requiere que el paquete `boto3` esté instalado y que las credenciales de AWS estén configuradas correctamente en el entorno (o pasadas explícitamente).
+
+    -   **Variables de Entorno para Configuración Básica:**
+        -   `TAUSESTACK_NOTIFY_BACKEND=ses`: Activa este backend.
+        -   `TAUSESTACK_NOTIFY_SES_SOURCE_EMAIL`: (Requerido) La dirección de correo electrónico verificada en SES que se usará como remitente.
+        -   `TAUSESTACK_NOTIFY_SES_AWS_REGION`: (Opcional) La región de AWS donde se encuentra configurado SES. Si no se especifica, se usará la región por defecto configurada para `boto3`.
+        -   También se respetarán las variables estándar de AWS para credenciales (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) si `boto3` las necesita y no se usan roles IAM.
+
+    -   **Configuración Avanzada (vía `backend_config` en `sdk.notify.email()`):
+
+        Al llamar a `sdk.notify.email()`, puedes pasar un diccionario `backend_config` para sobrescribir o proveer parámetros específicos para la instancia de `SESNotifyBackend`:
+
+        ```python
+        sdk.notify.email(
+            to="recipient@example.com",
+            subject="Asunto Importante",
+            body_text="Contenido del correo.",
+            backend='ses', # Opcional si ya es el backend por defecto
+            backend_config={
+                "source_email": "custom_sender@example.com", # Debe estar verificado en SES
+                "aws_region": "eu-west-1",
+                "aws_access_key_id": "YOUR_ACCESS_KEY", # No recomendado para producción, preferir roles IAM o variables de entorno seguras
+                "aws_secret_access_key": "YOUR_SECRET_KEY" # No recomendado para producción
+            }
+        )
+        ```
+
+    -   **Requisitos:**
+        -   Paquete `boto3` instalado (`pip install boto3`).
+        -   Credenciales de AWS configuradas (variables de entorno, archivo `~/.aws/credentials`, roles IAM, etc.).
+        -   La dirección de correo electrónico especificada en `TAUSESTACK_NOTIFY_SES_SOURCE_EMAIL` (o `source_email` en `backend_config`) debe estar verificada en AWS SES.
 
 #### Ejemplo de Uso
 
