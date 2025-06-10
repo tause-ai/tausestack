@@ -29,8 +29,8 @@ Este documento rastrea el progreso del desarrollo del framework TauseStack, dise
   - [x] **Sub-Tarea 2.1.4: Pruebas Unitarias Exhaustivas.**
   - [x] **Sub-Tarea 2.1.5: Documentación del Módulo `auth`.**
 - [ ] **Tarea 2.2: Creación del Módulo `sdk.database`.**
-  - [ ] **Sub-Tarea 2.2.1: Interfaz `AbstractDatabaseBackend`.**
-    - [ ] Definir operaciones CRUD básicas, gestión de transacciones, ejecución de consultas raw.
+  - [x] **Sub-Tarea 2.2.1: Interfaz `AbstractDatabaseBackend`.**
+    - [x] Definir operaciones CRUD básicas, gestión de transacciones, ejecución de consultas raw.
   - [ ] **Sub-Tarea 2.2.2: Implementación `SQLAlchemyBackend`.**
     - [ ] Integración con SQLAlchemy Core y ORM.
     - [ ] Soporte para migraciones (ej. con Alembic).
