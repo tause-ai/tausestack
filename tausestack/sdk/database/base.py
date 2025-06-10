@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar
 from pydantic import BaseModel
 
 # TypeVar para representar cualquier clase que herede de pydantic.BaseModel
-Model = TypeVar("Model", bound=BaseModel)
+_PydanticModelType = TypeVar("_PydanticModelType", bound=BaseModel)
 # TypeVar para representar el tipo del ID de un item (e.g., int, str, UUID)
 ItemID = TypeVar("ItemID")
 
@@ -24,7 +24,7 @@ class AbstractDatabaseBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create_tables(self, models: Optional[List[Type[Model]]] = None) -> None:
+    async def create_tables(self, models: Optional[List[Type[_PydanticModelType]]] = None) -> None:
         """
         Crea las tablas en la base de datos para los modelos Pydantic proporcionados.
         Si `models` es None, puede intentar crear todas las tablas conocidas por el backend.
@@ -32,7 +32,7 @@ class AbstractDatabaseBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def drop_tables(self, models: Optional[List[Type[Model]]] = None) -> None:
+    async def drop_tables(self, models: Optional[List[Type[_PydanticModelType]]] = None) -> None:
         """
         Elimina las tablas de la base de datos para los modelos Pydantic proporcionados.
         Si `models` es None, puede intentar eliminar todas las tablas conocidas por el backend.
@@ -40,7 +40,7 @@ class AbstractDatabaseBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create(self, model_cls: Type[Model], data: Dict[str, Any]) -> Model:
+    async def create(self, model_cls: Type[_PydanticModelType], data: Dict[str, Any]) -> _PydanticModelType:
         """
         Crea un nuevo registro para la clase `model_cls` con los datos proporcionados.
         Devuelve una instancia del modelo Pydantic creado.
@@ -48,7 +48,7 @@ class AbstractDatabaseBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_by_id(self, model_cls: Type[Model], item_id: ItemID) -> Optional[Model]:
+    async def get_by_id(self, model_cls: Type[_PydanticModelType], item_id: ItemID) -> Optional[_PydanticModelType]:
         """
         Obtiene un registro por su ID para la clase `model_cls`.
         Devuelve una instancia del modelo Pydantic o None si no se encuentra.
@@ -56,7 +56,7 @@ class AbstractDatabaseBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def update(self, model_cls: Type[Model], item_id: ItemID, data: Dict[str, Any]) -> Optional[Model]:
+    async def update(self, model_cls: Type[_PydanticModelType], item_id: ItemID, data: Dict[str, Any]) -> Optional[_PydanticModelType]:
         """
         Actualiza un registro por su ID para la clase `model_cls` con los datos proporcionados.
         Devuelve una instancia del modelo Pydantic actualizado o None si no se encuentra.
@@ -64,7 +64,7 @@ class AbstractDatabaseBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete(self, model_cls: Type[Model], item_id: ItemID) -> bool:
+    async def delete(self, model_cls: Type[_PydanticModelType], item_id: ItemID) -> bool:
         """
         Elimina un registro por su ID para la clase `model_cls`.
         Devuelve True si la eliminación fue exitosa, False en caso contrario.
@@ -74,12 +74,12 @@ class AbstractDatabaseBackend(ABC):
     @abstractmethod
     async def find(
         self,
-        model_cls: Type[Model],
+        model_cls: Type[_PydanticModelType],
         filters: Optional[Dict[str, Any]] = None,
         offset: int = 0,
         limit: Optional[int] = 100,
         sort_by: Optional[List[str]] = None  # e.g., ["name_asc", "created_at_desc"]
-    ) -> List[Model]:
+    ) -> List[_PydanticModelType]:
         """
         Busca registros para la clase `model_cls` aplicando filtros, paginación y ordenamiento.
         Devuelve una lista de instancias del modelo Pydantic.
@@ -89,7 +89,7 @@ class AbstractDatabaseBackend(ABC):
     @abstractmethod
     async def count(
         self,
-        model_cls: Type[Model],
+        model_cls: Type[_PydanticModelType],
         filters: Optional[Dict[str, Any]] = None
     ) -> int:
         """

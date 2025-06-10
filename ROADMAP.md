@@ -28,17 +28,17 @@ Este documento rastrea el progreso del desarrollo del framework TauseStack, dise
     - [ ] Definir un modelo Pydantic `User` para la información del usuario autenticado.
   - [x] **Sub-Tarea 2.1.4: Pruebas Unitarias Exhaustivas.**
   - [x] **Sub-Tarea 2.1.5: Documentación del Módulo `auth`.**
-- [ ] **Tarea 2.2: Creación del Módulo `sdk.database`.**
+- [x] **Tarea 2.2: Creación del Módulo `sdk.database` (SQLAlchemyBackend).**
   - [x] **Sub-Tarea 2.2.1: Interfaz `AbstractDatabaseBackend`.**
     - [x] Definir operaciones CRUD básicas, gestión de transacciones, ejecución de consultas raw.
-  - [ ] **Sub-Tarea 2.2.2: Implementación `SQLAlchemyBackend`.**
-    - [ ] Integración con SQLAlchemy Core y ORM.
-    - [ ] Soporte para migraciones (ej. con Alembic).
-    - [ ] Configuración de la URL de la base de datos (vía `sdk.secrets` o variables de entorno).
+  - [x] **Sub-Tarea 2.2.2: Implementación `SQLAlchemyBackend`.**
+    - [x] Integración con SQLAlchemy Core y ORM.
+    - [ ] Soporte para migraciones (ej. con Alembic) (Pendiente).
+    - [x] Configuración de la URL de la base de datos (vía `sdk.secrets` o variables de entorno).
   - [ ] **Sub-Tarea 2.2.3 (Alternativa/Adicional): Implementación `SupabaseBackend`.**
     - [ ] Integración con el cliente Python de Supabase.
-  - [ ] **Sub-Tarea 2.2.4: Pruebas Unitarias.**
-  - [ ] **Sub-Tarea 2.2.5: Documentación del Módulo `database`.**
+  - [x] **Sub-Tarea 2.2.4: Pruebas Unitarias (SQLAlchemyBackend).**
+  - [x] **Sub-Tarea 2.2.5: Documentación del Módulo `database` (SQLAlchemyBackend).**
 - [ ] **Tarea 2.3: Expansión del Módulo `sdk.storage`.**
   - [ ] **Sub-Tarea 2.3.1: Soporte para Almacenamiento de Archivos Binarios.**
     - [ ] API: `sdk.storage.binary.put(key, file_object)`, `sdk.storage.binary.get(key) -> file_object`, `sdk.storage.binary.delete(key)`.
