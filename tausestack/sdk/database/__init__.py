@@ -8,6 +8,7 @@ from .exceptions import (
     TransactionException,
     SchemaException
 )
+from .backends import SQLAlchemyBackend
 
 __all__ = [
     "AbstractDatabaseBackend",
@@ -20,4 +21,5 @@ __all__ = [
     "QueryExecutionException",
     "TransactionException",
     "SchemaException",
+    "SQLAlchemyBackend",
 ]
