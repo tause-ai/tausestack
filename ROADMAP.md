@@ -27,7 +27,7 @@ Este documento rastrea el progreso del desarrollo del framework TauseStack, dise
     - [ ] Crear una dependencia FastAPI (ej. `current_user: User = Depends(sdk.auth.get_current_user)`) que utilice el backend configurado para autenticar y devolver el usuario.
     - [ ] Definir un modelo Pydantic `User` para la información del usuario autenticado.
   - [x] **Sub-Tarea 2.1.4: Pruebas Unitarias Exhaustivas.**
-  - [ ] **Sub-Tarea 2.1.5: Documentación del Módulo `auth`.**
+  - [x] **Sub-Tarea 2.1.5: Documentación del Módulo `auth`.**
 - [ ] **Tarea 2.2: Creación del Módulo `sdk.database`.**
   - [ ] **Sub-Tarea 2.2.1: Interfaz `AbstractDatabaseBackend`.**
     - [ ] Definir operaciones CRUD básicas, gestión de transacciones, ejecución de consultas raw.
