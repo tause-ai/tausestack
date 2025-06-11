@@ -57,16 +57,27 @@ class FirebaseAuthBackend(AbstractAuthBackend[FirebaseVerifiedToken]):
 
     async def _map_firebase_user_to_sdk_user(self, firebase_user: auth.UserRecord) -> User:
         """Mapea un UserRecord de Firebase a nuestro modelo User."""
+        provider_data_list = [
+            {
+                "provider_id": p.provider_id,
+                "uid": p.uid,
+                "email": p.email,
+                "display_name": p.display_name,
+                "photo_url": str(p.photo_url) if p.photo_url else None,
+            }
+            for p in firebase_user.provider_data
+        ] if firebase_user.provider_data else []
+
         return User(
             id=firebase_user.uid,
-            email=firebase_user.email, # Pydantic will validate if firebase_user.email is a valid EmailStr or None
+            email=firebase_user.email,
             email_verified=firebase_user.email_verified,
             phone_number=firebase_user.phone_number,
             display_name=firebase_user.display_name,
-            photo_url=firebase_user.photo_url, # Pydantic will validate if firebase_user.photo_url is a valid HttpUrl or None
+            photo_url=firebase_user.photo_url,
             disabled=firebase_user.disabled,
             custom_claims=firebase_user.custom_claims or {},
-            provider_data=firebase_user.provider_data, # Assuming provider_data is a dict or None
+            provider_data=provider_data_list,
             created_at=int(firebase_user.user_metadata.creation_timestamp / 1000) if firebase_user.user_metadata else None,
             last_login_at=int(firebase_user.user_metadata.last_sign_in_timestamp / 1000) if firebase_user.user_metadata and firebase_user.user_metadata.last_sign_in_timestamp else None,
         )
@@ -182,6 +193,8 @@ class FirebaseAuthBackend(AbstractAuthBackend[FirebaseVerifiedToken]):
                 # o asumir que el cliente los manejará. Por simplicidad, no recargamos aquí.
 
             return await self._map_firebase_user_to_sdk_user(firebase_user)
+        except auth.UserNotFoundError as e:
+            raise UserNotFoundException("Usuario no encontrado para actualizar.") from e
         except Exception as e:
             raise AuthException(f"Error al actualizar usuario en Firebase: {e}")
 
@@ -190,6 +203,8 @@ class FirebaseAuthBackend(AbstractAuthBackend[FirebaseVerifiedToken]):
             raise AuthException("Firebase Admin SDK no inicializado.")
         try:
             auth.delete_user(user_id, app=FirebaseAuthBackend._default_app)
+        except auth.UserNotFoundError as e:
+            raise UserNotFoundException(f"Usuario con UID {user_id} no encontrado al intentar eliminar.") from e
         except Exception as e:
             raise AuthException(f"Error al eliminar usuario en Firebase: {e}")
 
@@ -199,7 +214,10 @@ class FirebaseAuthBackend(AbstractAuthBackend[FirebaseVerifiedToken]):
         if not FirebaseAuthBackend._default_app:
             raise AuthException("Firebase Admin SDK no inicializado.")
         try:
-            # Firebase espera que los claims no sean None
+            # Firebase espera que los claims no sean None. Si es None, pasamos un diccionario vacío.
+            # Esto reemplazará todos los claims existentes del usuario.
             auth.set_custom_user_claims(user_id, claims if claims is not None else {}, app=FirebaseAuthBackend._default_app)
+        except auth.UserNotFoundError as e:
+            raise UserNotFoundException("Usuario no encontrado para establecer claims.") from e
         except Exception as e:
-            raise AuthException(f"Error al establecer claims personalizados en Firebase: {e}")
+            raise AuthException(f"Error al establecer custom claims para el usuario {user_id} en Firebase: {e}")

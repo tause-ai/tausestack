@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
 
 from pydantic import BaseModel, EmailStr, HttpUrl
 
@@ -14,7 +14,7 @@ class User(BaseModel):
     photo_url: Optional[HttpUrl] = None
     disabled: Optional[bool] = False
     custom_claims: Optional[Dict[str, Any]] = {}
-    provider_data: Optional[Dict[str, Any]] = {} # Datos específicos del proveedor
+    provider_data: Optional[List[Dict[str, Any]]] = [] # Datos específicos del proveedor
     created_at: Optional[int] = None # Timestamp de creación
     last_login_at: Optional[int] = None # Timestamp del último login
 

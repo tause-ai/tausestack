@@ -2,7 +2,7 @@
 
 import os
 import json
-from typing import Optional, Type, Any
+from typing import Optional, Type, Any, List
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -126,6 +126,44 @@ async def get_current_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor durante la autenticación."
         )
+
+def require_user(required_roles: Optional[List[str]] = None):
+    """
+    Fábrica para crear una dependencia de FastAPI que requiere un usuario autenticado
+    y, opcionalmente, verifica si tiene roles específicos.
+
+    Args:
+        required_roles: Una lista opcional de strings de roles requeridos.
+                        Si un usuario tiene CUALQUIERA de los roles, se le permite el acceso.
+
+    Returns:
+        Una dependencia de FastAPI que puedes usar en tus endpoints.
+    """
+
+    async def _verify_roles(user: User = Depends(get_current_user)) -> User:
+        """
+        Dependencia interna que se inyecta en el endpoint y verifica los roles.
+        """
+        if not required_roles:
+            # Si no se especifican roles, solo se requiere autenticación.
+            return user
+
+        user_roles = user.custom_claims.get("roles", [])
+        if not isinstance(user_roles, list):
+            # Si 'roles' en los claims no es una lista, tratar como si no tuviera roles.
+            user_roles = []
+
+        # Comprobar si el usuario tiene al menos uno de los roles requeridos.
+        if not any(role in user_roles for role in required_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes los permisos necesarios para realizar esta acción.",
+            )
+
+        return user
+
+    return _verify_roles
+
 
 async def get_optional_current_user(
     token: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)

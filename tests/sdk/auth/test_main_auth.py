@@ -4,7 +4,7 @@ from unittest import mock
 from fastapi import HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 
-from tausestack.sdk.auth.main import get_current_user, get_optional_current_user, get_auth_backend # Asegúrate de que la ruta sea correcta
+from tausestack.sdk.auth.main import get_current_user, get_optional_current_user, require_user, get_auth_backend
 from tausestack.sdk.auth.base import User, AbstractAuthBackend
 from tausestack.sdk.auth.exceptions import (
     InvalidTokenException,
@@ -208,3 +208,57 @@ class TestGetOptionalCurrentUser:
 
         user = await get_optional_current_user(token=token_creds)
         assert user is None
+
+
+class TestRequireUser:
+    @pytest.mark.asyncio
+    async def test_require_user_no_roles_needed(self, sample_user_data):
+        """Verifica que si no se piden roles, solo se necesita un usuario autenticado."""
+        dependency_factory = require_user(required_roles=None)
+        # La dependencia que devuelve la fábrica espera el 'user' de get_current_user
+        result_user = await dependency_factory(user=sample_user_data)
+        assert result_user == sample_user_data
+
+    @pytest.mark.asyncio
+    async def test_require_user_has_required_role(self, sample_user_data):
+        """Verifica el acceso cuando el usuario tiene el rol requerido."""
+        sample_user_data.custom_claims = {"roles": ["admin", "editor"]}
+        dependency_factory = require_user(required_roles=["admin"])
+        result_user = await dependency_factory(user=sample_user_data)
+        assert result_user == sample_user_data
+
+    @pytest.mark.asyncio
+    async def test_require_user_has_one_of_multiple_required_roles(self, sample_user_data):
+        """Verifica el acceso si el usuario tiene al menos uno de los roles posibles."""
+        sample_user_data.custom_claims = {"roles": ["editor"]}
+        dependency_factory = require_user(required_roles=["admin", "editor"])
+        result_user = await dependency_factory(user=sample_user_data)
+        assert result_user == sample_user_data
+
+    @pytest.mark.asyncio
+    async def test_require_user_insufficient_roles(self, sample_user_data):
+        """Verifica que se deniega el acceso si el usuario no tiene el rol."""
+        sample_user_data.custom_claims = {"roles": ["viewer"]}
+        dependency_factory = require_user(required_roles=["admin"])
+        with pytest.raises(HTTPException) as exc_info:
+            await dependency_factory(user=sample_user_data)
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert "No tienes los permisos necesarios" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_require_user_no_roles_claim(self, sample_user_data):
+        """Verifica que se deniega el acceso si el claim 'roles' no existe."""
+        sample_user_data.custom_claims = {}
+        dependency_factory = require_user(required_roles=["admin"])
+        with pytest.raises(HTTPException) as exc_info:
+            await dependency_factory(user=sample_user_data)
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.asyncio
+    async def test_require_user_roles_claim_not_a_list(self, sample_user_data):
+        """Verifica que se deniega el acceso si el claim 'roles' no es una lista."""
+        sample_user_data.custom_claims = {"roles": "admin"} # No es una lista
+        dependency_factory = require_user(required_roles=["admin"])
+        with pytest.raises(HTTPException) as exc_info:
+            await dependency_factory(user=sample_user_data)
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
