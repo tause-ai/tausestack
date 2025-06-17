@@ -6,16 +6,41 @@ class AbstractJsonStorageBackend(ABC):
     """Abstract Base Class for JSON storage backends."""
 
     @abstractmethod
-    def get(self, key: str) -> Optional[Dict[str, Any]]:
+    def get_json(self, key: str) -> Optional[Dict[str, Any]]:
         """Retrieve a JSON object by key."""
         pass
 
     @abstractmethod
-    def put(self, key: str, value: Dict[str, Any]) -> None:
+    def put_json(self, key: str, value: Dict[str, Any]) -> None:
         """Store a JSON object by key."""
         pass
 
     @abstractmethod
-    def delete(self, key: str) -> None:
+    def delete_json(self, key: str) -> None:
         """Delete a JSON object by key."""
+        pass
+
+class AbstractBinaryStorageBackend(ABC):
+    """Abstract Base Class for Binary storage backends."""
+
+    @abstractmethod
+    def get_binary(self, key:str) -> Optional[bytes]:
+        """Retrieve binary data by key."""
+        pass
+
+    @abstractmethod
+    def put_binary(self, key: str, value: bytes, content_type: Optional[str] = None) -> None:
+        """Store binary data by key.
+
+        Args:
+            key: The key under which to store the data.
+            value: The binary data (bytes) to store.
+            content_type: Optional. The MIME type of the content (e.g., 'image/jpeg', 'application/pdf').
+                          This is particularly useful for object stores like S3.
+        """
+        pass
+
+    @abstractmethod
+    def delete_binary(self, key: str) -> None:
+        """Delete binary data by key."""
         pass

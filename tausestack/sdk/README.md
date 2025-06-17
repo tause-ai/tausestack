@@ -255,6 +255,108 @@ success_html = sdk.notify.email(
 )
 ```
 
+### 5. Módulo de Autenticación (`sdk.auth`)
+
+Este módulo proporciona funcionalidades para la autenticación de usuarios y la protección de rutas en aplicaciones FastAPI, integrándose con backends de autenticación como Firebase.
+
+#### Modelos de Datos
+
+-   **`User`**: Representa al usuario autenticado. Sus campos principales incluyen:
+    -   `uid: str`: Identificador único del usuario.
+    -   `email: Optional[str]`: Dirección de correo electrónico.
+    -   `display_name: Optional[str]`: Nombre para mostrar.
+    -   `photo_url: Optional[str]`: URL de la foto de perfil.
+    -   `disabled: bool`: Indica si la cuenta está deshabilitada.
+    -   `email_verified: bool`: Indica si el correo ha sido verificado.
+    -   `provider_data: Dict[str, Any]`: Datos específicos del proveedor (ej. Firebase).
+    -   `custom_claims: Dict[str, Any]`: Reclamaciones personalizadas asociadas al token del usuario.
+    -   `roles: List[str]`: Lista de roles del usuario, extraída de `custom_claims['roles']` (si existe).
+
+#### Backends de Autenticación
+
+-   **`AbstractAuthBackend`**: Define la interfaz para los backends de autenticación, asegurando que implementen métodos como `verify_token`, `get_user`, `create_user`, `update_user`, y `delete_user`.
+-   **`FirebaseAuthBackend`**: Implementación para Firebase Authentication.
+    -   **Inicialización y Credenciales**: El backend se inicializa automáticamente al primer uso. Las credenciales de Firebase Admin se cargan con la siguiente prioridad:
+        1.  Argumentos directos pasados al constructor (si se instancia manualmente: `credentials_path`, `credentials_dict`, `project_id`).
+        2.  Variable de entorno `TAUSESTACK_FIREBASE_SA_KEY_PATH`: Ruta a un archivo JSON de cuenta de servicio.
+        3.  Variable de entorno `TAUSESTACK_FIREBASE_SA_KEY_JSON`: Nombre de un secreto (gestionado por `sdk.secrets`) que contiene el contenido del archivo JSON de la cuenta de servicio.
+        4.  Variable de entorno `GOOGLE_APPLICATION_CREDENTIALS` (estándar de Google Cloud).
+        5.  Credenciales de ambiente de Google Cloud (si la aplicación se ejecuta en GCP con una cuenta de servicio asociada).
+        -   El `project_id` de Firebase se puede especificar con `TAUSESTACK_FIREBASE_PROJECT_ID` si no se puede inferir de las credenciales.
+    -   Internamente, el backend utiliza nombres de aplicación Firebase únicos (ej. `tausestack-firebase-app-<uuid>`) para evitar conflictos si múltiples instancias o la app por defecto de Firebase ya están inicializadas.
+
+#### Dependencias de FastAPI para Rutas
+
+Estas dependencias facilitan la protección de rutas en FastAPI:
+
+-   **`get_current_user`**: `current_user: User = Depends(get_current_user)`
+    -   Verifica el token `Authorization: Bearer <token>` de la cabecera.
+    -   Obtiene la información del usuario desde el backend de autenticación configurado.
+    -   Lanza `HTTPException(status_code=401, detail="Not authenticated")` si el token falta, es inválido, o el usuario no se encuentra.
+    -   Lanza `HTTPException(status_code=403, detail="Account disabled")` si la cuenta del usuario está deshabilitada.
+
+-   **`get_optional_current_user`**: `current_user: Optional[User] = Depends(get_optional_current_user)`
+    -   Similar a `get_current_user`, pero si el token es inválido o no se proporciona, devuelve `None` en lugar de lanzar una excepción. Útil para rutas que pueden ser accedidas por usuarios autenticados y anónimos.
+
+-   **`require_user`**: `current_user: User = Depends(require_user(required_roles: Optional[List[str]] = None))`
+    -   Combina la funcionalidad de `get_current_user` con la verificación de roles.
+    -   Si se proporciona `required_roles` (ej. `["admin", "editor"]`), verifica que el usuario tenga al menos uno de los roles especificados.
+    -   Los roles del usuario se esperan en `user.custom_claims['roles']` como una lista de strings.
+    -   Lanza `HTTPException(status_code=403, detail="Insufficient permissions")` si el usuario no cumple con los roles requeridos.
+
+#### Excepciones Personalizadas del SDK
+
+El módulo `sdk.auth` puede lanzar las siguientes excepciones específicas (además de las `HTTPException` en las dependencias):
+
+-   `AuthException`: Excepción base para errores de autenticación.
+-   `InvalidTokenException`: El token proporcionado es inválido o ha expirado.
+-   `UserNotFoundException`: El usuario asociado al token no se encuentra en el backend.
+-   `AccountDisabledException`: La cuenta del usuario está deshabilitada.
+-   `AuthenticationBackendNotConfigured`: No se ha configurado un backend de autenticación.
+
+#### Configuración (Variables de Entorno)
+
+-   `TAUSESTACK_AUTH_BACKEND`: Especifica el backend de autenticación a utilizar.
+    -   `'firebase'` (default): Utiliza `FirebaseAuthBackend`.
+-   `TAUSESTACK_FIREBASE_SA_KEY_PATH`: Ruta al archivo JSON de la cuenta de servicio de Firebase.
+-   `TAUSESTACK_FIREBASE_SA_KEY_JSON`: Nombre del secreto (gestionado por `sdk.secrets`) que contiene el JSON de la cuenta de servicio.
+-   `TAUSESTACK_FIREBASE_PROJECT_ID`: (Opcional) ID del proyecto Firebase. Útil si no se puede inferir de las credenciales.
+
+#### Ejemplo de Uso
+
+```python
+from fastapi import FastAPI, Depends
+from typing import Optional
+from tausestack.sdk.auth import get_current_user, get_optional_current_user, require_user
+from tausestack.sdk.auth.models import User
+
+app = FastAPI()
+
+@app.get("/public")
+async def public_route():
+    return {"message": "Esta ruta es pública"}
+
+@app.get("/users/me")
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@app.get("/admin/dashboard")
+async def admin_dashboard(current_user: User = Depends(require_user(required_roles=["admin"]))):
+    return {"message": f"Bienvenido al panel de admin, {current_user.display_name}!"}
+
+@app.get("/profile/info")
+async def get_profile_info(current_user: Optional[User] = Depends(get_optional_current_user)):
+    if current_user:
+        return {"message": f"Información para {current_user.uid}", "email": current_user.email}
+    return {"message": "Información para usuarios anónimos"}
+
+# Para ejecutar este ejemplo:
+# 1. Configura tus variables de entorno para Firebase (ej. TAUSESTACK_FIREBASE_SA_KEY_PATH).
+# 2. Instala FastAPI y Uvicorn: pip install fastapi uvicorn
+# 3. Guarda el código como main.py y ejecuta: uvicorn main:app --reload
+# 4. Realiza peticiones con un Bearer token válido en la cabecera Authorization.
+```
+
 ## Logging en el SDK
 
 El SDK de TauseStack utiliza el módulo `logging` estándar de Python para registrar información sobre sus operaciones y posibles errores.

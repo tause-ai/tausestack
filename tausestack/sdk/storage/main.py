@@ -1,93 +1,115 @@
-from typing import Any, Dict, Optional, Type
 import logging
+import os
+from typing import Any, Dict, Optional, Union
+
+from .backends import LocalStorage, S3Storage, BOTO3_AVAILABLE
+from .base import AbstractJsonStorageBackend, AbstractBinaryStorageBackend
 
 logger = logging.getLogger(__name__)
-import os
 
-from .base import AbstractJsonStorageBackend
-from .backends import LocalJsonStorage, S3JsonStorage
+# --- Client Classes ---
 
-class JsonClient:
-    """Client for interacting with JSON storage.
-
-    This client provides a simple interface (get, put, delete) for JSON data,
-    delegating the actual storage operations to a configured backend.
+class JsonStorageClient:
     """
-    _backend_instance: Optional[AbstractJsonStorageBackend] = None
-
-    def __init__(self, backend_class: Optional[Type[AbstractJsonStorageBackend]] = None, config: Optional[Dict[str, Any]] = None):
-        """
-        Initializes the JsonClient.
-
-        If backend_class is provided, it will be used. Otherwise, it attempts to determine
-        the backend from configuration (not yet implemented, defaults to LocalJsonStorage).
-
-        Args:
-            backend_class: The specific backend class to use (e.g., LocalJsonStorage).
-            config: Configuration dictionary for the backend (e.g., {'base_path': '/tmp/storage'}).
-        """
-        if JsonClient._backend_instance is None:
-            logger.debug("Attempting to initialize storage backend for JsonClient.")
-            resolved_config = config or {}
-            if backend_class:
-                # If a specific backend class is provided, use it.
-                # This is useful for testing or specific overrides.
-                if backend_class == LocalJsonStorage and 'base_path' not in resolved_config:
-                    # Provide default base_path if not in config for LocalJsonStorage
-                    resolved_config['base_path'] = os.getenv('TAUSESTACK_LOCAL_STORAGE_PATH', '.tausestack_storage/json')
-                JsonClient._backend_instance = backend_class(**resolved_config)
-                logger.info(f"JsonClient initialized with explicitly provided backend: {backend_class.__name__} using config: {resolved_config}")
-            else:
-                # TODO: Implement configuration-based backend selection
-                # For now, defaults to LocalJsonStorage
-                # In the future, read TAUSESTACK_STORAGE_BACKEND env var
-                # and instantiate S3JsonStorage or LocalJsonStorage accordingly.
-                storage_backend_type = os.getenv('TAUSESTACK_STORAGE_BACKEND', 'local')
-                
-                if storage_backend_type == 'local':
-                    base_path = resolved_config.get('base_path', 
-                                                os.getenv('TAUSESTACK_LOCAL_STORAGE_PATH', '.tausestack_storage/json'))
-                    JsonClient._backend_instance = LocalJsonStorage(base_path=base_path)
-                    logger.info(f"JsonClient initialized with LocalJsonStorage. Backend type: 'local', base_path: '{base_path}'")
-                elif storage_backend_type == 's3':
-                    bucket_name = resolved_config.get('bucket_name', os.getenv('TAUSESTACK_S3_BUCKET_NAME'))
-                    if not bucket_name:
-                        # Try to get it from a more general AWS_S3_BUCKET_NAME if specific one is not set
-                        bucket_name = os.getenv('AWS_S3_BUCKET_NAME') 
-                    if not bucket_name:
-                        logger.error("S3 bucket name not configured. TAUSESTACK_S3_BUCKET_NAME or AWS_S3_BUCKET_NAME must be set for 's3' backend.")
-                        raise ValueError("S3 bucket name not configured. Set TAUSESTACK_S3_BUCKET_NAME or AWS_S3_BUCKET_NAME.")
-                    try:
-                        JsonClient._backend_instance = S3JsonStorage(bucket_name=bucket_name)
-                        logger.info(f"JsonClient initialized with S3JsonStorage. Backend type: 's3', bucket_name: '{bucket_name}'")
-                    except ImportError as e:
-                        logger.critical(f"Failed to initialize S3JsonStorage due to ImportError (likely missing boto3): {e}", exc_info=True)
-                        # S3JsonStorage already logs critical if BOTO3_AVAILABLE is False, this adds context from main.py
-                        raise ImportError(f"{e} Ensure boto3 is installed for S3 support: pip install boto3") from e
-                else:
-                    logger.error(f"Unsupported storage backend type specified: '{storage_backend_type}'. Supported types are 'local', 's3'.")
-                    raise ValueError(f"Unsupported storage backend type: {storage_backend_type}. Supported types are 'local', 's3'.")
-        
-        # Ensure the instance is not None after initialization attempt
-        if JsonClient._backend_instance is None:
-            logger.critical("Storage backend could not be initialized after attempting all configuration paths.")
-            raise RuntimeError("Storage backend could not be initialized.")
-
-        self._backend = JsonClient._backend_instance
+    A client for interacting with the configured JSON storage backend.
+    """
+    def __init__(self, backend: AbstractJsonStorageBackend):
+        self._backend = backend
+        logger.debug(f"JsonStorageClient initialized with backend: {type(backend).__name__}")
 
     def get(self, key: str) -> Optional[Dict[str, Any]]:
-        """Retrieves a JSON object by key from the configured backend."""
-        return self._backend.get(key)
+        """
+        Retrieves a JSON object from the storage by its key.
+        """
+        return self._backend.get_json(key)
 
     def put(self, key: str, value: Dict[str, Any]) -> None:
-        """Stores a JSON object by key in the configured backend."""
-        self._backend.put(key, value)
+        """
+        Saves or updates a JSON object in the storage.
+        """
+        self._backend.put_json(key, value)
 
     def delete(self, key: str) -> None:
-        """Deletes a JSON object by key from the configured backend."""
-        self._backend.delete(key)
+        """
+        Deletes a JSON object from the storage by its key.
+        """
+        self._backend.delete_json(key)
 
-# Global instance for convenience, similar to how Databutton SDK might expose it.
-# This instance will be initialized with default settings (LocalJsonStorage for now).
-# Users can also create their own JsonClient instances with specific backends/configs if needed.
-json_client = JsonClient()
+class BinaryStorageClient:
+    """
+    A client for interacting with the configured binary storage backend.
+    """
+    def __init__(self, backend: AbstractBinaryStorageBackend):
+        self._backend = backend
+        logger.debug(f"BinaryStorageClient initialized with backend: {type(backend).__name__}")
+
+    def get(self, key: str) -> Optional[bytes]:
+        """
+        Retrieves a binary object from the storage by its key.
+        """
+        return self._backend.get_binary(key)
+
+    def put(self, key: str, value: bytes, content_type: Optional[str] = None) -> None:
+        """
+        Saves or updates a binary object in the storage.
+        """
+        self._backend.put_binary(key, value, content_type)
+
+    def delete(self, key: str) -> None:
+        """
+        Deletes a binary object from the storage by its key.
+        """
+        self._backend.delete_binary(key)
+
+# --- Backend Factory and Singleton ---
+
+StorageBackend = Union[AbstractJsonStorageBackend, AbstractBinaryStorageBackend]
+_storage_backend_instance: Optional[StorageBackend] = None
+
+def _get_storage_backend() -> StorageBackend:
+    """
+    Factory function to create and return the appropriate storage backend
+    based on environment variables.
+    """
+    backend_type = os.environ.get("TAUSESTACK_STORAGE_BACKEND", "local").lower()
+    logger.info(f"Selected storage backend: {backend_type}")
+
+    if backend_type == "local":
+        json_path = os.environ.get("TAUSESTACK_LOCAL_JSON_STORAGE_PATH", ".tausestack_storage/json")
+        binary_path = os.environ.get("TAUSESTACK_LOCAL_BINARY_STORAGE_PATH", ".tausestack_storage/binary")
+        return LocalStorage(base_json_path=json_path, base_binary_path=binary_path)
+    
+    elif backend_type == "s3":
+        if not BOTO3_AVAILABLE:
+            raise ImportError("TAUSESTACK_STORAGE_BACKEND is 's3', but boto3 is not installed. Please run 'pip install boto3'.")
+        
+        bucket_name = os.environ.get("TAUSESTACK_S3_BUCKET_NAME")
+        if not bucket_name:
+            raise ValueError("TAUSESTACK_STORAGE_BACKEND is 's3', but TAUSESTACK_S3_BUCKET_NAME is not set.")
+        
+        return S3Storage(bucket_name=bucket_name)
+
+    else:
+        raise ValueError(f"Unknown storage backend: '{backend_type}'. Supported backends are 'local' and 's3'.")
+
+def _get_backend_instance() -> StorageBackend:
+    """Lazy initializer for the backend singleton."""
+    global _storage_backend_instance
+    if _storage_backend_instance is None:
+        _storage_backend_instance = _get_storage_backend()
+    return _storage_backend_instance
+
+# --- Client Instances ---
+# These instances use the lazily initialized backend singleton.
+# The type ignore is used because _get_backend_instance returns a Union, 
+# but LocalStorage and S3Storage implement both AbstractJsonStorageBackend and AbstractBinaryStorageBackend.
+_initialized_backend = _get_backend_instance()
+json_client = JsonStorageClient(backend=_initialized_backend) # type: ignore
+binary_client = BinaryStorageClient(backend=_initialized_backend) # type: ignore
+
+# --- Public API ---
+
+# The public client instances that applications will import and use.
+_backend = _get_backend_instance()
+json = JsonStorageClient(backend=_backend)
+binary = BinaryStorageClient(backend=_backend)
