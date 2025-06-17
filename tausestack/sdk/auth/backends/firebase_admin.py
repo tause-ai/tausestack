@@ -1,9 +1,12 @@
 import firebase_admin
 from firebase_admin import auth, credentials
 from typing import Any, Dict, Optional, Type
+import os
+import json
 
 from pydantic import EmailStr, HttpUrl
 
+from tausestack.sdk import secrets # Importar el SDK de secrets
 from ..base import AbstractAuthBackend, User
 from ..exceptions import (
     AuthException,
@@ -28,29 +31,57 @@ class FirebaseAuthBackend(AbstractAuthBackend[FirebaseVerifiedToken]):
         """
         Inicializa el backend de Firebase Auth.
 
+        Prioridad de credenciales:
+        1. Argumentos directos: service_account_key_dict o service_account_key_path.
+        2. Variable de entorno TAUSESTACK_FIREBASE_SA_KEY_PATH (ruta al archivo JSON).
+        3. Secreto TAUSESTACK_FIREBASE_SA_KEY_JSON (contenido JSON del string vía sdk.secrets).
+
         Args:
             service_account_key_path: Ruta al archivo JSON de la cuenta de servicio.
             service_account_key_dict: Diccionario con el contenido de la cuenta de servicio.
             project_id: ID del proyecto Firebase (opcional si está en las credenciales).
-        
-        Se debe proporcionar service_account_key_path o service_account_key_dict.
         """
         if FirebaseAuthBackend._default_app:
             return
 
-        if not service_account_key_path and not service_account_key_dict:
+        final_sa_key_path = service_account_key_path
+        final_sa_key_dict = service_account_key_dict
+
+        if not final_sa_key_dict and not final_sa_key_path:
+            env_path = os.getenv("TAUSESTACK_FIREBASE_SA_KEY_PATH")
+            if env_path:
+                final_sa_key_path = env_path
+            else:
+                secret_json_str = secrets.get("TAUSESTACK_FIREBASE_SA_KEY_JSON")
+                if secret_json_str:
+                    try:
+                        final_sa_key_dict = json.loads(secret_json_str)
+                    except json.JSONDecodeError as e:
+                        raise ValueError(
+                            f"Error al decodificar TAUSESTACK_FIREBASE_SA_KEY_JSON: {e}"
+                        )
+
+        if not final_sa_key_path and not final_sa_key_dict:
             raise ValueError(
-                "Se debe proporcionar 'service_account_key_path' o 'service_account_key_dict' para inicializar Firebase."
+                "No se proporcionaron credenciales de Firebase. "
+                "Configure service_account_key_dict, service_account_key_path, "
+                "TAUSESTACK_FIREBASE_SA_KEY_PATH, o TAUSESTACK_FIREBASE_SA_KEY_JSON."
             )
         
         try:
-            if service_account_key_dict:
-                cred = credentials.Certificate(service_account_key_dict)
-            else:
-                cred = credentials.Certificate(service_account_key_path)
+            if final_sa_key_dict:
+                cred = credentials.Certificate(final_sa_key_dict)
+            else: # final_sa_key_path debe estar definido aquí
+                cred = credentials.Certificate(final_sa_key_path)
             
             options = {'projectId': project_id} if project_id else {}
-            FirebaseAuthBackend._default_app = firebase_admin.initialize_app(credential=cred, options=options, name="tausestack-firebase-auth")
+            # Usar un nombre único para la app para evitar conflictos si se usa firebase_admin para otras cosas
+            app_name = f"tausestack-firebase-auth-{os.getpid()}" 
+            try:
+                FirebaseAuthBackend._default_app = firebase_admin.get_app(name=app_name)
+            except ValueError: # App no existe, inicializarla
+                 FirebaseAuthBackend._default_app = firebase_admin.initialize_app(credential=cred, options=options, name=app_name)
+
         except Exception as e:
             # Considerar loggear el error 'e' aquí
             raise AuthException(f"Error al inicializar Firebase Admin SDK: {e}")
@@ -175,16 +206,41 @@ class FirebaseAuthBackend(AbstractAuthBackend[FirebaseVerifiedToken]):
         if not FirebaseAuthBackend._default_app:
             raise AuthException("Firebase Admin SDK no inicializado.")
         try:
-            update_kwargs = {k: v for k, v in kwargs.items() if v is not None}
-            if email: update_kwargs['email'] = email
-            if phone_number is not None: update_kwargs['phone_number'] = phone_number # Permitir borrar con None
-            if password: update_kwargs['password'] = password
-            if display_name is not None: update_kwargs['display_name'] = display_name
-            if photo_url is not None: update_kwargs['photo_url'] = str(photo_url) # Permitir borrar con None o actualizar
-            if email_verified is not None: update_kwargs['email_verified'] = email_verified
-            if disabled is not None: update_kwargs['disabled'] = disabled
+            payload = {} # Start with an empty payload
+            
+            # Add named arguments to payload if they are not None (or not an empty string for clarity of intent for some)
+            # This means if a user explicitly passes a value, it's included.
+            # If they let it default to None, it's not included (no change).
 
-            firebase_user = auth.update_user(user_id, **update_kwargs, app=FirebaseAuthBackend._default_app)
+            if email is not None:
+                payload['email'] = email
+            
+            if phone_number is not None: # User wants to change it (to a value or to clear with "")
+                payload['phone_number'] = phone_number 
+            
+            if password is not None: # Password can only be updated, not cleared with "" or None via this param
+                payload['password'] = password
+            
+            if display_name is not None:
+                payload['display_name'] = display_name
+
+            if photo_url is not None:
+                payload['photo_url'] = str(photo_url) # Firebase expects string. "" will clear.
+
+            if email_verified is not None:
+                payload['email_verified'] = email_verified
+
+            if disabled is not None:
+                payload['disabled'] = disabled
+
+            # Add any extra kwargs that were passed and are not None
+            # This allows for future flexibility if Firebase adds new updatable fields
+            # that are not yet named parameters in our method.
+            for k, v_kwarg in kwargs.items(): # Renamed v to v_kwarg to avoid conflict if a kwarg is named 'v'
+                if v_kwarg is not None:
+                    payload[k] = v_kwarg
+
+            firebase_user = auth.update_user(user_id, **payload, app=FirebaseAuthBackend._default_app)
             
             # Manejar custom_claims por separado si se proporcionan
             if custom_claims is not None:

@@ -23,19 +23,38 @@ def mock_firebase_credentials():
 def mock_firebase_initialize_app():
     with mock.patch('firebase_admin.initialize_app') as mock_init_app, \
          mock.patch('firebase_admin.get_app') as mock_get_app:
-        mock_app = mock.MagicMock(spec=firebase_admin.App)
-        mock_app.name = "[DEFAULT]"
-        mock_init_app.return_value = mock_app
-        mock_get_app.return_value = mock_app
+        
+        # Configurar mock_get_app para que inicialmente falle (simula que ninguna app existe)
+        # Esto fuerza al constructor de FirebaseAuthBackend a llamar a initialize_app.
+        mock_get_app.side_effect = ValueError("Simulated: Firebase app [DEFAULT] not found or other initial error.")
 
-        original_default_app = FirebaseAuthBackend._default_app
-        FirebaseAuthBackend._default_app = mock_app
+        # Configurar mock_init_app para que devuelva un objeto App mockeado cuando se llame
+        mock_created_app = mock.MagicMock(spec=firebase_admin.App)
+        # El nombre de la app creada por el backend será único, no '[DEFAULT]'
+        # No necesitamos predecir el UUID aquí, solo asegurar que es un objeto App.
+        mock_init_app.return_value = mock_created_app
+
+        # Guardar el estado original de _default_app para restaurarlo después del test.
+        # Esto es importante si las pruebas se ejecutan en un entorno donde _default_app podría
+        # haber sido establecido por una prueba anterior o por una inicialización real.
+        original_default_app_state = FirebaseAuthBackend._default_app
+        FirebaseAuthBackend._default_app = None # Asegurar que está limpio antes de cada test de inicialización
         
-        yield mock_init_app
+        yield mock_init_app # La prueba usará esto para verificar si initialize_app fue llamado
         
-        FirebaseAuthBackend._default_app = original_default_app
+        # Restaurar el estado original de _default_app
+        FirebaseAuthBackend._default_app = original_default_app_state
 
 # Mock para el módulo firebase_admin.auth
+@pytest.fixture
+def mock_config_sources():
+    with mock.patch('tausestack.sdk.auth.backends.firebase_admin.os.getenv') as mock_getenv, \
+         mock.patch('tausestack.sdk.auth.backends.firebase_admin.secrets.get') as mock_secrets_get:
+        # Default behavior: no env vars or secrets found
+        mock_getenv.return_value = None
+        mock_secrets_get.return_value = None
+        yield mock_getenv, mock_secrets_get
+
 @pytest.fixture
 def mock_firebase_auth_module():
     with mock.patch('tausestack.sdk.auth.backends.firebase_admin.auth') as mock_auth:
@@ -106,17 +125,106 @@ def mock_user_record():
     return user
 
 class TestFirebaseAuthBackendInitialization:
-    def test_initialize_app_with_dict_success(self, mock_firebase_credentials, mock_firebase_initialize_app):
+    # Test case for direct dictionary credential
+    def test_initialize_with_dict_success(self, mock_firebase_credentials, mock_firebase_initialize_app, mock_config_sources):
+        FirebaseAuthBackend._default_app = None # Reset for each init test
+        mock_getenv, mock_secrets_get = mock_config_sources
+        
+        cred_dict = {'type': 'service_account', 'project_id': 'test-project-dict'}
+        backend = FirebaseAuthBackend(service_account_key_dict=cred_dict)
+        
+        mock_firebase_credentials.assert_called_once_with(cred_dict)
+        mock_firebase_initialize_app.assert_called_once()
+        assert backend._default_app is not None
+        mock_getenv.assert_not_called() # Should not try env if dict is provided
+        mock_secrets_get.assert_not_called() # Should not try secrets if dict is provided
+
+    # Test case for direct path credential
+    def test_initialize_with_path_success(self, mock_firebase_credentials, mock_firebase_initialize_app, mock_config_sources):
         FirebaseAuthBackend._default_app = None
-        backend = FirebaseAuthBackend(service_account_key_dict={'type': 'service_account', 'project_id': 'test-project'})
-        mock_firebase_credentials.assert_called_once_with({'type': 'service_account', 'project_id': 'test-project'})
+        mock_getenv, mock_secrets_get = mock_config_sources
+        
+        cred_path = '/fake/path/to/serviceAccount.json'
+        backend = FirebaseAuthBackend(service_account_key_path=cred_path)
+        
+        mock_firebase_credentials.assert_called_once_with(cred_path)
+        mock_firebase_initialize_app.assert_called_once()
+        assert backend._default_app is not None
+        mock_getenv.assert_not_called()
+        mock_secrets_get.assert_not_called()
+
+    # Test case for environment variable path
+    def test_initialize_with_env_path_success(self, mock_firebase_credentials, mock_firebase_initialize_app, mock_config_sources):
+        FirebaseAuthBackend._default_app = None
+        mock_getenv, mock_secrets_get = mock_config_sources
+        
+        env_cred_path = '/env/path/serviceAccount.json'
+        mock_getenv.side_effect = lambda key: env_cred_path if key == "TAUSESTACK_FIREBASE_SA_KEY_PATH" else None
+        
+        backend = FirebaseAuthBackend()
+        
+        mock_getenv.assert_any_call("TAUSESTACK_FIREBASE_SA_KEY_PATH")
+        mock_firebase_credentials.assert_called_once_with(env_cred_path)
+        mock_firebase_initialize_app.assert_called_once()
+        assert backend._default_app is not None
+        mock_secrets_get.assert_not_called() # Should not try secrets if env path is found
+
+    # Test case for secrets JSON string
+    def test_initialize_with_secrets_json_success(self, mock_firebase_credentials, mock_firebase_initialize_app, mock_config_sources):
+        FirebaseAuthBackend._default_app = None
+        mock_getenv, mock_secrets_get = mock_config_sources
+        
+        secret_json_str = '{"type": "service_account", "project_id": "test-project-secret"}'
+        secret_dict = {'type': 'service_account', 'project_id': 'test-project-secret'}
+        mock_secrets_get.side_effect = lambda key: secret_json_str if key == "TAUSESTACK_FIREBASE_SA_KEY_JSON" else None
+        
+        backend = FirebaseAuthBackend()
+        
+        mock_getenv.assert_any_call("TAUSESTACK_FIREBASE_SA_KEY_PATH") # Will be called first
+        mock_secrets_get.assert_called_once_with("TAUSESTACK_FIREBASE_SA_KEY_JSON")
+        mock_firebase_credentials.assert_called_once_with(secret_dict)
         mock_firebase_initialize_app.assert_called_once()
         assert backend._default_app is not None
 
-    def test_no_credentials_raises_value_error(self):
+    # Test case for credential priority (direct path > env > secrets)
+    def test_initialize_credential_priority(self, mock_firebase_credentials, mock_firebase_initialize_app, mock_config_sources):
         FirebaseAuthBackend._default_app = None
-        with pytest.raises(ValueError, match="Se debe proporcionar 'service_account_key_path' o 'service_account_key_dict'"):
+        mock_getenv, mock_secrets_get = mock_config_sources
+
+        direct_path = '/direct/path.json'
+        mock_getenv.return_value = '/env/path.json' # This should be ignored
+        mock_secrets_get.return_value = '{"type":"secret"}' # This should be ignored
+
+        backend = FirebaseAuthBackend(service_account_key_path=direct_path)
+        mock_firebase_credentials.assert_called_once_with(direct_path)
+        mock_getenv.assert_not_called()
+        mock_secrets_get.assert_not_called()
+        assert backend._default_app is not None
+
+    # Test case for failure when no credentials are found
+    def test_no_credentials_anywhere_raises_value_error(self, mock_config_sources):
+        FirebaseAuthBackend._default_app = None # Ensure clean state
+        mock_getenv, mock_secrets_get = mock_config_sources
+        # Ensure mocks return None, indicating no credentials found
+        mock_getenv.return_value = None
+        mock_secrets_get.return_value = None
+        
+        with pytest.raises(ValueError, match="No se proporcionaron credenciales de Firebase."):
             FirebaseAuthBackend()
+        mock_getenv.assert_any_call("TAUSESTACK_FIREBASE_SA_KEY_PATH")
+        mock_secrets_get.assert_called_once_with("TAUSESTACK_FIREBASE_SA_KEY_JSON")
+
+    # Test case for invalid JSON from secrets
+    def test_initialize_with_invalid_secrets_json_raises_value_error(self, mock_config_sources):
+        FirebaseAuthBackend._default_app = None
+        mock_getenv, mock_secrets_get = mock_config_sources
+        
+        invalid_json_str = '{"type": "service_account", "project_id": "test-project-secret" # missing closing brace'
+        mock_secrets_get.side_effect = lambda key: invalid_json_str if key == "TAUSESTACK_FIREBASE_SA_KEY_JSON" else None
+        
+        with pytest.raises(ValueError, match="Error al decodificar TAUSESTACK_FIREBASE_SA_KEY_JSON"):
+            FirebaseAuthBackend()
+        mock_secrets_get.assert_called_once_with("TAUSESTACK_FIREBASE_SA_KEY_JSON")
 
 class TestFirebaseAuthBackendVerifyToken:
     @pytest.mark.asyncio
@@ -276,6 +384,96 @@ class TestFirebaseAuthBackendUpdateUser:
         finally:
             FirebaseAuthBackend._default_app = original_app
 
+
+
+    @pytest.mark.asyncio
+    async def test_update_user_single_field(self, firebase_auth_backend: FirebaseAuthBackend, mock_firebase_auth_module, mock_user_record):
+        # Mock UserRecord to reflect the upcoming change
+        mock_user_record.display_name = 'Only Name Updated'
+        mock_firebase_auth_module.update_user.return_value = mock_user_record
+
+        updated_user = await firebase_auth_backend.update_user(
+            user_id='test_uid_single',
+            display_name='Only Name Updated'
+        )
+
+        mock_firebase_auth_module.update_user.assert_called_once_with(
+            'test_uid_single',
+            display_name='Only Name Updated',
+            app=firebase_auth_backend._default_app
+        )
+        assert updated_user is not None
+        assert updated_user.display_name == 'Only Name Updated'
+        # Ensure other fields from mock_user_record are still there if they were part of the original mock
+        assert updated_user.email == mock_user_record.email 
+
+    @pytest.mark.asyncio
+    async def test_update_user_clear_field(self, firebase_auth_backend: FirebaseAuthBackend, mock_firebase_auth_module, mock_user_record):
+        # Mock UserRecord to reflect the upcoming change
+        mock_user_record.phone_number = ''
+        mock_firebase_auth_module.update_user.return_value = mock_user_record
+
+        updated_user = await firebase_auth_backend.update_user(
+            user_id='test_uid_clear',
+            phone_number=''
+        )
+
+        mock_firebase_auth_module.update_user.assert_called_once_with(
+            'test_uid_clear',
+            phone_number='',
+            app=firebase_auth_backend._default_app
+        )
+        assert updated_user is not None
+        assert updated_user.phone_number == ''
+
+    @pytest.mark.asyncio
+    async def test_update_user_field_as_none_no_change_in_payload(self, firebase_auth_backend: FirebaseAuthBackend, mock_firebase_auth_module, mock_user_record):
+        # If a field is passed as None, it should NOT be part of the payload to Firebase
+        # The mock_user_record will be returned as is by the mocked update_user
+        original_display_name = mock_user_record.display_name
+        mock_firebase_auth_module.update_user.return_value = mock_user_record
+
+        updated_user = await firebase_auth_backend.update_user(
+            user_id='test_uid_none',
+            display_name=None, # This should be filtered out
+            email_verified=True # Include another valid field to ensure payload is not empty
+        )
+        
+        # display_name=None should not be in the call to firebase_admin.auth.update_user
+        # We expect only uid, email_verified, and app in the call
+        # Need to capture arguments to check this properly
+        args, kwargs = mock_firebase_auth_module.update_user.call_args
+        assert args[0] == 'test_uid_none'
+        assert 'display_name' not in kwargs
+        assert kwargs['email_verified'] is True
+        assert kwargs['app'] == firebase_auth_backend._default_app
+        
+        assert updated_user is not None
+        # The display_name on the returned user should be the original one, as it wasn't updated
+        assert updated_user.display_name == original_display_name
+        # The email_verified status on mock_user_record might not be True by default, 
+        # so we check what was actually passed and returned for that field.
+        # For this test, we assume mock_user_record.email_verified is updated by the mocked call if it was in payload.
+        # Let's ensure mock_user_record reflects the change for email_verified for assertion consistency.
+        mock_user_record.email_verified = True 
+        assert updated_user.email_verified is True
+
+    @pytest.mark.asyncio
+    async def test_update_user_with_extra_kwargs(self, firebase_auth_backend: FirebaseAuthBackend, mock_firebase_auth_module, mock_user_record):
+        mock_firebase_auth_module.update_user.return_value = mock_user_record
+
+        await firebase_auth_backend.update_user(
+            user_id='test_uid_extra',
+            display_name='Extra Kwargs User',
+            custom_unrecognized_kwarg='test_value' 
+        )
+
+        mock_firebase_auth_module.update_user.assert_called_once_with(
+            'test_uid_extra',
+            display_name='Extra Kwargs User',
+            custom_unrecognized_kwarg='test_value',
+            app=firebase_auth_backend._default_app
+        )
 
 
 class TestFirebaseAuthBackendDeleteUser:

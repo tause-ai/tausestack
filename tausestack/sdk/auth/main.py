@@ -33,40 +33,27 @@ def get_auth_backend() -> AbstractAuthBackend:
         backend_type = os.getenv("TAUSESTACK_AUTH_BACKEND", "firebase").lower()
 
         if backend_type == "firebase":
-            project_id = os.getenv("TAUSESTACK_FIREBASE_PROJECT_ID")
-            key_path = os.getenv("TAUSESTACK_FIREBASE_SERVICE_ACCOUNT_KEY_PATH")
-            key_json_str = os.getenv("TAUSESTACK_FIREBASE_SERVICE_ACCOUNT_JSON")
-
-            service_account_creds: Any = None
-            if key_json_str:
-                try:
-                    service_account_creds = json.loads(key_json_str)
-                except json.JSONDecodeError as e:
-                    raise AuthException(
-                        f"Error al parsear TAUSESTACK_FIREBASE_SERVICE_ACCOUNT_JSON: {e}"
-                    )
-            elif key_path:
-                service_account_creds = key_path
-            else:
-                raise AuthException(
-                    "Se debe configurar TAUSESTACK_FIREBASE_SERVICE_ACCOUNT_KEY_PATH o "
-                    "TAUSESTACK_FIREBASE_SERVICE_ACCOUNT_JSON para el backend de Firebase."
-                )
-            
+            # FirebaseAuthBackend ahora maneja la carga de credenciales desde:
+            # 1. Argumentos directos (si se pasaran aquí, pero no es necesario)
+            # 2. Variables de entorno (TAUSESTACK_FIREBASE_SA_KEY_PATH)
+            # 3. SDK Secrets (TAUSESTACK_FIREBASE_SA_KEY_JSON)
+            # El project_id también puede ser inferido de las credenciales o configurado vía TAUSESTACK_FIREBASE_PROJECT_ID si es necesario.
+            project_id_env = os.getenv("TAUSESTACK_FIREBASE_PROJECT_ID")
             try:
-                _auth_backend_instance = FirebaseAuthBackend(
-                    service_account_key_path=service_account_creds if isinstance(service_account_creds, str) else None,
-                    service_account_key_dict=service_account_creds if isinstance(service_account_creds, dict) else None,
-                    project_id=project_id
-                )
-            except ValueError as ve:
+                # Pasamos project_id_env explícitamente si está definido, sino FirebaseAuthBackend intentará inferirlo.
+                _auth_backend_instance = FirebaseAuthBackend(project_id=project_id_env)
+            except ValueError as ve: # Captura errores de configuración de credenciales desde el constructor
                 raise AuthException(f"Error de configuración de FirebaseAuthBackend: {ve}")
+            except AuthException: # Re-lanzar AuthExceptions del constructor
+                raise
             except Exception as e:
                  raise AuthException(f"No se pudo inicializar FirebaseAuthBackend: {e}")
-
+        # Aquí se podrían añadir otros tipos de backend (ej. 'oauth', 'dummy') en el futuro
+        # elif backend_type == "otro_backend":
+        # _auth_backend_instance = OtroAuthBackendConfigurado()
         else:
             raise NotImplementedError(
-                f"Backend de autenticación '{backend_type}' no implementado o no configurado en TAUSESTACK_AUTH_BACKEND."
+                f"Backend de autenticación '{backend_type}' no implementado. Configure TAUSESTACK_AUTH_BACKEND."
             )
     
     if not _auth_backend_instance:
