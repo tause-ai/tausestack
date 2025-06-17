@@ -213,3 +213,89 @@ async def execute_update_example():
 ```
 
 **Nota de Seguridad:** Al usar SQL crudo, ten mucho cuidado con la inyección SQL. Utiliza siempre consultas parametrizadas (pasando valores a través del argumento `params`) en lugar de formatear cadenas SQL directamente con datos de entrada del usuario.
+
+## Gestión de Migraciones con Alembic
+
+Alembic es una herramienta de migración de bases de datos para SQLAlchemy. Permite gestionar la evolución del esquema de tu base de datos a medida que tu aplicación cambia. El SDK de TauseStack integra Alembic para facilitar este proceso con `SQLAlchemyBackend`.
+
+### Estructura de Directorios
+
+La configuración y los scripts de migración de Alembic para el SDK se encuentran en:
+`tausestack/sdk/database/migrations_alembic/`
+
+Dentro de este directorio, encontrarás:
+- `alembic.ini`: Archivo principal de configuración de Alembic.
+- `env.py`: Script que Alembic ejecuta para configurar el entorno de migración, incluyendo la conexión a la base de datos y la detección de metadatos de tus modelos.
+- `versions/`: Directorio que contendrá los scripts de migración generados.
+
+### Configuración Inicial (para usuarios del SDK)
+
+Para utilizar Alembic con tus modelos y base de datos, necesitas:
+
+1.  **Asegurar que Alembic está instalado**: Ya está incluido como dependencia del SDK TauseStack.
+2.  **Definir tus Modelos SQLAlchemy**: Asegúrate de que tus modelos SQLAlchemy (como `UserSQLA` en el ejemplo anterior) hereden de una `Base` declarativa común (ej. `Base = declarative_base()`).
+3.  **Establecer Variables de Entorno**: El `env.py` configurado en el SDK espera dos variables de entorno para funcionar correctamente:
+    *   `TAUSESTACK_DATABASE_URL`: La URL de conexión a tu base de datos SQLAlchemy. Debe ser la misma que usarías para `SQLAlchemyBackend`.
+        *   Ejemplo SQLite: `export TAUSESTACK_DATABASE_URL="sqlite+aiosqlite:///./mi_app.db"`
+        *   Ejemplo PostgreSQL: `export TAUSESTACK_DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname"`
+    *   `TAUSESTACK_ALEMBIC_METADATA_TARGET`: La ruta de importación completa a tu objeto `MetaData` de SQLAlchemy. Este objeto `MetaData` es el que Alembic usará para detectar cambios en tus tablas.
+        *   Si usas `Base = declarative_base()`, esto típicamente es `Base.metadata`.
+        *   Ejemplo: `export TAUSESTACK_ALEMBIC_METADATA_TARGET="tu_app.modelos_sqla:Base.metadata"` (asumiendo que `Base` está en `tu_app/modelos_sqla.py`).
+        *   O si tienes un objeto `MetaData` explícito: `export TAUSESTACK_ALEMBIC_METADATA_TARGET="tu_app.db_config:metadata_obj"`
+
+### Comandos Comunes de Alembic
+
+Los comandos de Alembic deben ejecutarse desde el directorio `tausestack/sdk/database/migrations_alembic/`. Asegúrate de que las variables de entorno mencionadas arriba estén definidas en tu sesión de terminal.
+
+*   **Generar una nueva revisión (script de migración)**:
+    Después de modificar tus modelos SQLAlchemy, ejecuta:
+    ```bash
+    alembic revision -m "descripcion_breve_del_cambio" --autogenerate
+    ```
+    Esto comparará tus modelos con el estado actual de la base de datos (según lo registrado por Alembic) y generará un nuevo script en el directorio `versions/`.
+
+*   **Aplicar migraciones a la base de datos**:
+    Para aplicar todas las migraciones pendientes hasta la última revisión (`head`):
+    ```bash
+    alembic upgrade head
+    ```
+    También puedes aplicar hasta una revisión específica: `alembic upgrade <revision_id>`
+
+*   **Revertir migraciones**:
+    Para revertir la última migración aplicada:
+    ```bash
+    alembic downgrade -1
+    ```
+    O para revertir a una revisión específica: `alembic downgrade <revision_id>`
+
+*   **Ver el historial de migraciones**:
+    ```bash
+    alembic history
+    ```
+
+*   **Ver la revisión actual de la base de datos**:
+    ```bash
+    alembic current
+    ```
+
+### Flujo de Trabajo Típico
+
+1.  **Modifica tus modelos SQLAlchemy** (ej. añadir una nueva tabla, una nueva columna, cambiar un tipo de dato).
+2.  **Asegúrate de que las variables de entorno** `TAUSESTACK_DATABASE_URL` y `TAUSESTACK_ALEMBIC_METADATA_TARGET` estén correctamente configuradas.
+3.  **Navega al directorio de migraciones**: `cd path/to/your_project/tausestack/sdk/database/migrations_alembic/`
+4.  **Genera el script de migración**:
+    ```bash
+    alembic revision -m "añadida_columna_xyz_a_tabla_abc" --autogenerate
+    ```
+5.  **(Recomendado) Revisa el script de migración generado** en el directorio `versions/` para asegurarte de que los cambios son los esperados.
+6.  **Aplica la migración a tu base de datos**:
+    ```bash
+    alembic upgrade head
+    ```
+
+### Notas Importantes
+
+*   **Directorio de Ejecución**: Es crucial ejecutar los comandos de Alembic desde `tausestack/sdk/database/migrations_alembic/` porque `alembic.ini` está configurado con `script_location = .`, lo que significa que busca `env.py` y el directorio `versions/` de forma relativa a su propia ubicación.
+*   **Autogeneración**: La función `--autogenerate` de Alembic es potente pero no perfecta. Siempre revisa los scripts generados, especialmente para operaciones complejas como cambios de nombre de tablas/columnas o alteraciones de restricciones que podrían no ser detectadas automáticamente o podrían requerir ajustes manuales.
+*   **Bases de Datos Múltiples**: Si trabajas con múltiples bases de datos (ej. una para desarrollo, otra para producción), asegúrate de que `TAUSESTACK_DATABASE_URL` apunte a la base de datos correcta antes de ejecutar comandos de `upgrade` o `downgrade`.
+*   **Trabajo en Equipo**: Cuando trabajes en equipo, coordina las migraciones. Después de obtener los últimos cambios del repositorio (que pueden incluir nuevas migraciones de otros desarrolladores), ejecuta `alembic upgrade head` para poner tu base de datos local al día.
