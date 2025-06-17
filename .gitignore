@@ -13,3 +13,6 @@ postgres_data/
 
 # VSCode
 .vscode/
+
+# Virtual environment
+.venv/
