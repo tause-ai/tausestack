@@ -109,7 +109,9 @@ try:
     BOTO3_AVAILABLE = True
 except ImportError:
     BOTO3_AVAILABLE = False
-    class ClientError(Exception): pass # Dummy for type hinting if boto3 not available
+    class ClientError(Exception):
+        """Dummy class for type hinting when boto3 is not available."""
+        pass
 
 class S3Storage(AbstractJsonStorageBackend, AbstractBinaryStorageBackend):
     """Stores JSON objects and binary files in AWS S3."""
