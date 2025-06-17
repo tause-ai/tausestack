@@ -13,7 +13,7 @@ Actualmente, el SDK incluye los siguientes módulos:
 
 ### 1. Módulo de Storage (`sdk.storage`)
 
-Este módulo facilita el almacenamiento y la recuperación de objetos JSON.
+Este módulo facilita el almacenamiento y la recuperación de objetos JSON y archivos binarios.
 
 #### API (`sdk.storage.json`)
 
@@ -26,22 +26,34 @@ El cliente principal para JSON se accede a través de `sdk.storage.json`:
 -   `sdk.storage.json.delete(key: str) -> None`:
     Elimina un objeto JSON por su `key`.
 
+#### API (`sdk.storage.binary`)
+
+El cliente para archivos binarios se accede a través de `sdk.storage.binary`:
+
+-   `sdk.storage.binary.put(key: str, value: bytes, content_type: str | None = None) -> None`:
+    Almacena datos binarios (`value`) asociados a una `key`. Opcionalmente, se puede especificar el `content_type` (MIME type), lo cual es útil para backends como S3.
+-   `sdk.storage.binary.get(key: str) -> bytes | None`:
+    Recupera los datos binarios por su `key`. Retorna `None` si la clave no existe.
+-   `sdk.storage.binary.delete(key: str) -> None`:
+    Elimina los datos binarios por su `key`.
+
 #### Configuración
 
 El backend de almacenamiento se configura mediante las siguientes variables de entorno:
 
 -   `TAUSESTACK_STORAGE_BACKEND`: Especifica el backend a utilizar.
-    -   `'local'` (default): Utiliza `LocalJsonStorage`.
-    -   `'s3'`: Utiliza `S3JsonStorage`.
--   `TAUSESTACK_LOCAL_STORAGE_PATH`: (Para `LocalJsonStorage`) Ruta base en el sistema de archivos donde se almacenarán los JSON. Default: `./.tausestack_storage/json`.
--   `TAUSESTACK_S3_BUCKET_NAME`: (Para `S3JsonStorage`) Nombre del bucket S3 a utilizar. También se puede usar `AWS_S3_BUCKET_NAME`.
+    -   `'local'` (default): Utiliza `LocalStorage`.
+    -   `'s3'`: Utiliza `S3Storage`.
+-   `TAUSESTACK_LOCAL_JSON_STORAGE_PATH`: (Para `LocalStorage`) Ruta base para archivos JSON. Default: `./.tausestack_storage/json`.
+-   `TAUSESTACK_LOCAL_BINARY_STORAGE_PATH`: (Para `LocalStorage`) Ruta base para archivos binarios. Default: `./.tausestack_storage/binary`.
+-   `TAUSESTACK_S3_BUCKET_NAME`: (Para `S3Storage`) Nombre del bucket S3 a utilizar.
 
 #### Backends
 
--   **`LocalJsonStorage`**: Almacena los objetos JSON como archivos en el sistema de archivos local.
--   **`S3JsonStorage`**: Almacena los objetos JSON en un bucket de AWS S3. Requiere que `boto3` esté instalado (`pip install boto3`).
+-   **`LocalStorage`**: Almacena objetos JSON y archivos binarios en el sistema de archivos local.
+-   **`S3Storage`**: Almacena objetos JSON y archivos binarios en un bucket de AWS S3. Requiere que `boto3` esté instalado (`pip install boto3`).
 
-#### Ejemplo de Uso
+#### Ejemplo de Uso (JSON)
 
 ```python
 from tausestack import sdk
@@ -56,6 +68,27 @@ if config:
 
 # Eliminar un objeto
 sdk.storage.json.delete("mi_configuracion")
+```
+
+#### Ejemplo de Uso (Binario)
+
+```python
+from tausestack import sdk
+
+# Crear datos binarios (ej. un archivo de texto simple)
+binary_content = b"Este es el contenido de mi archivo binario."
+
+# Almacenar el archivo
+# El 'key' puede incluir una ruta y extension, p.ej. 'documentos/reporte.txt'
+sdk.storage.binary.put("mi_archivo.bin", binary_content)
+
+# Recuperar el archivo
+retrieved_content = sdk.storage.binary.get("mi_archivo.bin")
+if retrieved_content:
+    print(retrieved_content.decode('utf-8'))
+
+# Eliminar el archivo
+sdk.storage.binary.delete("mi_archivo.bin")
 ```
 
 ### 2. Módulo de Secrets (`sdk.secrets`)
