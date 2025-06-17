@@ -25,7 +25,6 @@ dependencies = [
     "pydantic~=2.7.1",
     "python-jose[cryptography]>=3.3.0",
     "python-multipart>=0.0.6",
-    "boto3>=1.20.0",
     "firebase-admin>=6.0.0",
     "sqlalchemy>=2.0.0",
     "asyncpg>=0.27.0",
@@ -36,6 +35,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+storage-df = [
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0"
+]
+storage-s3 = [
+    "boto3>=1.20.0"
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -44,10 +50,12 @@ dev = [
     "mypy>=1.0.0",
     "ruff>=0.1.0",
     "pytest-asyncio>=0.21.0",
-    "firebase-admin>=6.5.0"
-]
-test = [
+    "firebase-admin>=6.5.0",
     "moto[s3,secretsmanager,ses] >=4.0.0,<6.0.0"
+]
+full = [
+    "tausestack[storage-df]",
+    "tausestack[storage-s3]"
 ]
 
 [project.urls]

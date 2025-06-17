@@ -26,6 +26,22 @@ El cliente principal para JSON se accede a través de `sdk.storage.json`:
 -   `sdk.storage.json.delete(key: str) -> None`:
     Elimina un objeto JSON por su `key`.
 
+#### API (`sdk.storage.dataframe`)
+
+El cliente para DataFrames de pandas se accede a través de `sdk.storage.dataframe`.
+
+**Nota**: Para utilizar esta funcionalidad, debes instalar las dependencias adicionales:
+```bash
+pip install tausestack[storage-df]
+```
+
+-   `sdk.storage.dataframe.put(key: str, value: pd.DataFrame) -> None`:
+    Almacena un DataFrame (`value`) asociado a una `key` en formato Parquet.
+-   `sdk.storage.dataframe.get(key: str) -> pd.DataFrame | None`:
+    Recupera un DataFrame por su `key`. Retorna `None` si la clave no existe.
+-   `sdk.storage.dataframe.delete(key: str) -> None`:
+    Elimina un DataFrame por su `key`.
+
 #### API (`sdk.storage.binary`)
 
 El cliente para archivos binarios se accede a través de `sdk.storage.binary`:
@@ -46,12 +62,13 @@ El backend de almacenamiento se configura mediante las siguientes variables de e
     -   `'s3'`: Utiliza `S3Storage`.
 -   `TAUSESTACK_LOCAL_JSON_STORAGE_PATH`: (Para `LocalStorage`) Ruta base para archivos JSON. Default: `./.tausestack_storage/json`.
 -   `TAUSESTACK_LOCAL_BINARY_STORAGE_PATH`: (Para `LocalStorage`) Ruta base para archivos binarios. Default: `./.tausestack_storage/binary`.
+-   `TAUSESTACK_LOCAL_DATAFRAME_STORAGE_PATH`: (Para `LocalStorage`) Ruta base para DataFrames. Default: `./.tausestack_storage/dataframe`.
 -   `TAUSESTACK_S3_BUCKET_NAME`: (Para `S3Storage`) Nombre del bucket S3 a utilizar.
 
 #### Backends
 
 -   **`LocalStorage`**: Almacena objetos JSON y archivos binarios en el sistema de archivos local.
--   **`S3Storage`**: Almacena objetos JSON y archivos binarios en un bucket de AWS S3. Requiere que `boto3` esté instalado (`pip install boto3`).
+-   **`S3Storage`**: Almacena objetos JSON, archivos binarios y DataFrames en un bucket de AWS S3. Requiere que `boto3` esté instalado (`pip install tausestack[storage-s3]`).
 
 #### Ejemplo de Uso (JSON)
 
@@ -89,6 +106,30 @@ if retrieved_content:
 
 # Eliminar el archivo
 sdk.storage.binary.delete("mi_archivo.bin")
+```
+
+#### Ejemplo de Uso (DataFrame)
+
+```python
+from tausestack import sdk
+import pandas as pd
+
+# Crear un DataFrame de ejemplo
+df = pd.DataFrame({
+    'columna1': [1, 2, 3],
+    'columna2': ['A', 'B', 'C']
+})
+
+# Almacenar el DataFrame
+sdk.storage.dataframe.put("mi_dataframe", df)
+
+# Recuperar el DataFrame
+retrieved_df = sdk.storage.dataframe.get("mi_dataframe")
+if retrieved_df is not None:
+    print(retrieved_df)
+
+# Eliminar el DataFrame
+sdk.storage.dataframe.delete("mi_dataframe")
 ```
 
 ### 2. Módulo de Secrets (`sdk.secrets`)

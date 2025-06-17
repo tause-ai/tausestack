@@ -2,8 +2,15 @@ import logging
 import os
 from typing import Any, Dict, Optional, Union
 
-from .backends import LocalStorage, S3Storage, BOTO3_AVAILABLE
-from .base import AbstractJsonStorageBackend, AbstractBinaryStorageBackend
+from .backends import BOTO3_AVAILABLE, LocalStorage, S3Storage, PANDAS_AVAILABLE
+from .base import (
+    AbstractBinaryStorageBackend,
+    AbstractDataFrameStorageBackend,
+    AbstractJsonStorageBackend,
+)
+
+if PANDAS_AVAILABLE:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +68,46 @@ class BinaryStorageClient:
         """
         self._backend.delete_binary(key)
 
+class DataFrameStorageClient:
+    """
+    A client for interacting with the configured DataFrame storage backend.
+    Requires pandas and pyarrow to be installed.
+    """
+
+    def __init__(self, backend: AbstractDataFrameStorageBackend):
+        if not PANDAS_AVAILABLE:
+            raise ImportError(
+                "pandas and pyarrow are required for DataFrame functionality. "
+                "Please install them: pip install pandas pyarrow"
+            )
+        self._backend = backend
+        logger.debug(
+            f"DataFrameStorageClient initialized with backend: {type(backend).__name__}"
+        )
+
+    def get(self, key: str) -> Optional["pd.DataFrame"]:
+        """
+        Retrieves a DataFrame from the storage by its key.
+        """
+        return self._backend.get_dataframe(key)
+
+    def put(self, key: str, value: "pd.DataFrame") -> None:
+        """
+        Saves or updates a DataFrame in the storage.
+        """
+        self._backend.put_dataframe(key, value)
+
+    def delete(self, key: str) -> None:
+        """
+        Deletes a DataFrame from the storage by its key.
+        """
+        self._backend.delete_dataframe(key)
+
 # --- Backend Factory and Singleton ---
 
-StorageBackend = Union[AbstractJsonStorageBackend, AbstractBinaryStorageBackend]
+StorageBackend = Union[
+    AbstractJsonStorageBackend, AbstractBinaryStorageBackend, AbstractDataFrameStorageBackend
+]
 _storage_backend_instance: Optional[StorageBackend] = None
 
 def _get_storage_backend() -> StorageBackend:
@@ -75,9 +119,20 @@ def _get_storage_backend() -> StorageBackend:
     logger.info(f"Selected storage backend: {backend_type}")
 
     if backend_type == "local":
-        json_path = os.environ.get("TAUSESTACK_LOCAL_JSON_STORAGE_PATH", ".tausestack_storage/json")
-        binary_path = os.environ.get("TAUSESTACK_LOCAL_BINARY_STORAGE_PATH", ".tausestack_storage/binary")
-        return LocalStorage(base_json_path=json_path, base_binary_path=binary_path)
+        json_path = os.environ.get(
+            "TAUSESTACK_LOCAL_JSON_STORAGE_PATH", ".tausestack_storage/json"
+        )
+        binary_path = os.environ.get(
+            "TAUSESTACK_LOCAL_BINARY_STORAGE_PATH", ".tausestack_storage/binary"
+        )
+        dataframe_path = os.environ.get(
+            "TAUSESTACK_LOCAL_DATAFRAME_STORAGE_PATH", ".tausestack_storage/dataframe"
+        )
+        return LocalStorage(
+            base_json_path=json_path,
+            base_binary_path=binary_path,
+            base_dataframe_path=dataframe_path,
+        )
     
     elif backend_type == "s3":
         if not BOTO3_AVAILABLE:
@@ -103,13 +158,17 @@ def _get_backend_instance() -> StorageBackend:
 # These instances use the lazily initialized backend singleton.
 # The type ignore is used because _get_backend_instance returns a Union, 
 # but LocalStorage and S3Storage implement both AbstractJsonStorageBackend and AbstractBinaryStorageBackend.
-_initialized_backend = _get_backend_instance()
-json_client = JsonStorageClient(backend=_initialized_backend) # type: ignore
-binary_client = BinaryStorageClient(backend=_initialized_backend) # type: ignore
+
 
 # --- Public API ---
 
 # The public client instances that applications will import and use.
 _backend = _get_backend_instance()
-json = JsonStorageClient(backend=_backend)
-binary = BinaryStorageClient(backend=_backend)
+
+# The type ignore is used because _get_backend_instance returns a Union,
+# but LocalStorage and S3Storage implement all necessary abstract backends.
+json = JsonStorageClient(backend=_backend)  # type: ignore
+binary = BinaryStorageClient(backend=_backend)  # type: ignore
+dataframe = (
+    DataFrameStorageClient(backend=_backend) if PANDAS_AVAILABLE else None  # type: ignore
+)

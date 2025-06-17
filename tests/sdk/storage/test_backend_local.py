@@ -3,7 +3,11 @@ import os
 import shutil
 import json
 from pathlib import Path
-from tausestack.sdk.storage.backends import LocalStorage
+from tausestack.sdk.storage.backends import LocalStorage, PANDAS_AVAILABLE
+
+if PANDAS_AVAILABLE:
+    import pandas as pd
+    from pandas.testing import assert_frame_equal
 
 class TestLocalStorage(unittest.TestCase):
     """Test suite for the LocalStorage backend (JSON and Binary)."""
@@ -151,3 +155,74 @@ class TestLocalStorage(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+@unittest.skipUnless(PANDAS_AVAILABLE, "pandas and pyarrow are not installed")
+class TestLocalStorageDataFrames(unittest.TestCase):
+    """Test suite for the LocalStorage backend (DataFrame)."""
+
+    def setUp(self):
+        """Set up temporary storage directories for tests."""
+        self.test_base_dir = Path(".test_temp_storage_local_df")
+        self.test_dataframe_path = self.test_base_dir / "dataframe_files"
+        
+        self.storage = LocalStorage(
+            base_dataframe_path=str(self.test_dataframe_path)
+        )
+        
+        if self.test_base_dir.exists():
+            shutil.rmtree(self.test_base_dir)
+        self.test_dataframe_path.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self):
+        """Clean up the temporary storage directories after tests."""
+        if self.test_base_dir.exists():
+            shutil.rmtree(self.test_base_dir)
+
+    def test_put_and_get_dataframe(self):
+        key = "test_df_1"
+        data = {'col1': [1, 2], 'col2': [3, 4]}
+        df = pd.DataFrame(data=data)
+        self.storage.put_dataframe(key, df)
+        retrieved_df = self.storage.get_dataframe(key)
+        self.assertIsNotNone(retrieved_df)
+        assert_frame_equal(retrieved_df, df)
+
+    def test_get_non_existent_dataframe(self):
+        retrieved_df = self.storage.get_dataframe("non_existent_key_df")
+        self.assertIsNone(retrieved_df)
+
+    def test_overwrite_dataframe(self):
+        key = "test_df_overwrite"
+        original_df = pd.DataFrame({'a': [1]}) 
+        updated_df = pd.DataFrame({'b': [2]})
+        self.storage.put_dataframe(key, original_df)
+        self.storage.put_dataframe(key, updated_df)
+        retrieved_df = self.storage.get_dataframe(key)
+        assert_frame_equal(retrieved_df, updated_df)
+
+    def test_delete_dataframe(self):
+        key = "test_df_delete"
+        df = pd.DataFrame({'c': [3]})
+        self.storage.put_dataframe(key, df)
+        self.storage.delete_dataframe(key)
+        retrieved_df = self.storage.get_dataframe(key)
+        self.assertIsNone(retrieved_df)
+        file_path = self.storage._get_dataframe_file_path(key)
+        self.assertFalse(file_path.exists())
+
+    def test_delete_non_existent_dataframe(self):
+        try:
+            self.storage.delete_dataframe("non_existent_key_for_delete_df")
+        except Exception as e:
+            self.fail(f"Deleting non-existent DataFrame key raised an exception: {e}")
+
+    def test_put_with_subdirectories_dataframe(self):
+        key = "subdir_df/test_data_subdir"
+        df = pd.DataFrame({'path': ['nested/object_df']})
+        self.storage.put_dataframe(key, df)
+        retrieved_df = self.storage.get_dataframe(key)
+        self.assertIsNotNone(retrieved_df)
+        assert_frame_equal(retrieved_df, df)
+        expected_file_path = self.test_dataframe_path / "subdir_df" / "test_data_subdir.parquet"
+        self.assertTrue(expected_file_path.exists())
+        self.assertTrue(expected_file_path.is_file())

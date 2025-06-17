@@ -1,22 +1,49 @@
 import json
 import logging
 import os
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .base import AbstractJsonStorageBackend, AbstractBinaryStorageBackend
+from .base import (
+    AbstractBinaryStorageBackend,
+    AbstractDataFrameStorageBackend,
+    AbstractJsonStorageBackend,
+)
+
+try:
+    import pandas as pd
+    import pyarrow
+
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    pd = None
+    pyarrow = None
 
 logger = logging.getLogger(__name__)
 
-class LocalStorage(AbstractJsonStorageBackend, AbstractBinaryStorageBackend):
-    """Stores JSON objects and binary files in the local filesystem."""
+class LocalStorage(
+    AbstractJsonStorageBackend, AbstractBinaryStorageBackend, AbstractDataFrameStorageBackend
+):
+    """Stores JSON objects, binary files, and DataFrames in the local filesystem."""
 
-    def __init__(self, base_json_path: str = ".tausestack_storage/json", base_binary_path: str = ".tausestack_storage/binary"):
+    def __init__(
+        self,
+        base_json_path: str = ".tausestack_storage/json",
+        base_binary_path: str = ".tausestack_storage/binary",
+        base_dataframe_path: str = ".tausestack_storage/dataframe",
+    ):
         self.base_json_path = Path(base_json_path)
         self.base_binary_path = Path(base_binary_path)
+        self.base_dataframe_path = Path(base_dataframe_path)
         self.base_json_path.mkdir(parents=True, exist_ok=True)
         self.base_binary_path.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"LocalStorage initialized. JSON path: {self.base_json_path}, Binary path: {self.base_binary_path}")
+        self.base_dataframe_path.mkdir(parents=True, exist_ok=True)
+        logger.debug(
+            f"LocalStorage initialized. JSON path: {self.base_json_path}, "
+            f"Binary path: {self.base_binary_path}, DataFrame path: {self.base_dataframe_path}"
+        )
 
     # --- JSON Methods --- 
     def _get_json_file_path(self, key: str) -> Path:
@@ -102,6 +129,59 @@ class LocalStorage(AbstractJsonStorageBackend, AbstractBinaryStorageBackend):
             logger.error(f"Error deleting binary file {file_path} for key '{key}': {e}", exc_info=True)
             raise
 
+    # --- DataFrame Methods ---
+    def _get_dataframe_file_path(self, key: str) -> Path:
+        if not PANDAS_AVAILABLE:
+            raise ImportError("pandas and pyarrow are required for DataFrame storage.")
+        path_key = Path(key)
+        if path_key.suffix.lower() != ".parquet":
+            path_key = path_key.with_suffix(".parquet")
+        return self.base_dataframe_path / path_key
+
+    def get_dataframe(self, key: str) -> Optional["pd.DataFrame"]:
+        file_path = self._get_dataframe_file_path(key)
+        try:
+            return pd.read_parquet(file_path)
+        except FileNotFoundError:
+            logger.debug(f"DataFrame file not found at {file_path} for key '{key}'")
+            return None
+        except Exception as e:
+            logger.error(
+                f"Error reading DataFrame from {file_path} for key '{key}': {e}",
+                exc_info=True,
+            )
+            raise
+
+    def put_dataframe(self, key: str, value: "pd.DataFrame") -> None:
+        file_path = self._get_dataframe_file_path(key)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            value.to_parquet(file_path)
+            logger.debug(f"Successfully wrote DataFrame to {file_path} for key '{key}'")
+        except Exception as e:
+            logger.error(
+                f"Error writing DataFrame to {file_path} for key '{key}': {e}",
+                exc_info=True,
+            )
+            raise
+
+    def delete_dataframe(self, key: str) -> None:
+        file_path = self._get_dataframe_file_path(key)
+        try:
+            os.remove(file_path)
+            logger.debug(f"Successfully deleted DataFrame file {file_path} for key '{key}'")
+        except FileNotFoundError:
+            logger.debug(
+                f"DataFrame file not found at {file_path} for key '{key}' during delete."
+            )
+            pass
+        except OSError as e:
+            logger.error(
+                f"Error deleting DataFrame file {file_path} for key '{key}': {e}",
+                exc_info=True,
+            )
+            raise
+
 # --- S3 Storage --- 
 try:
     import boto3
@@ -113,8 +193,10 @@ except ImportError:
         """Dummy class for type hinting when boto3 is not available."""
         pass
 
-class S3Storage(AbstractJsonStorageBackend, AbstractBinaryStorageBackend):
-    """Stores JSON objects and binary files in AWS S3."""
+class S3Storage(
+    AbstractJsonStorageBackend, AbstractBinaryStorageBackend, AbstractDataFrameStorageBackend
+):
+    """Stores JSON objects, binary files, and DataFrames in AWS S3."""
 
     def __init__(self, bucket_name: str, s3_client=None):
         if not BOTO3_AVAILABLE:
@@ -223,4 +305,80 @@ class S3Storage(AbstractJsonStorageBackend, AbstractBinaryStorageBackend):
                 logger.debug(f"Attempted to delete non-existent S3 binary object {s3_key}. No action.")
             else:
                 logger.warning(f"Error deleting S3 binary object {s3_key}: {e}", exc_info=True)
+                raise
+
+    # --- DataFrame Methods ---
+    def _get_dataframe_s3_key(self, key: str) -> str:
+        if not PANDAS_AVAILABLE:
+            raise ImportError("pandas and pyarrow are required for DataFrame storage.")
+        s3_key = key.lstrip('/')
+        if not s3_key.endswith(".parquet"):
+            s3_key += ".parquet"
+        return s3_key
+
+    def get_dataframe(self, key: str) -> Optional["pd.DataFrame"]:
+        s3_key = self._get_dataframe_s3_key(key)
+        try:
+            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
+            buffer = BytesIO(response['Body'].read())
+            return pd.read_parquet(buffer)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                logger.debug(
+                    f"S3 DataFrame object {s3_key} not found in {self.bucket_name} for key '{key}'"
+                )
+                return None
+            logger.error(
+                f"Error getting S3 DataFrame object {s3_key} from {self.bucket_name} for key '{key}': {e}",
+                exc_info=True,
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                f"Error reading DataFrame from S3 object {s3_key} for key '{key}': {e}",
+                exc_info=True,
+            )
+            raise
+
+    def put_dataframe(self, key: str, value: "pd.DataFrame") -> None:
+        s3_key = self._get_dataframe_s3_key(key)
+        try:
+            buffer = BytesIO()
+            value.to_parquet(buffer, index=False)
+            buffer.seek(0)
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=s3_key,
+                Body=buffer,
+                ContentType='application/vnd.apache.parquet'
+            )
+            logger.debug(
+                f"Successfully put S3 DataFrame object {s3_key} to {self.bucket_name} for key '{key}'"
+            )
+        except ClientError as e:
+            logger.error(
+                f"Error putting S3 DataFrame object {s3_key} to {self.bucket_name} for key '{key}': {e}",
+                exc_info=True,
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                f"Error writing DataFrame to S3 for key {s3_key}: {e}", exc_info=True
+            )
+            raise
+
+    def delete_dataframe(self, key: str) -> None:
+        s3_key = self._get_dataframe_s3_key(key)
+        try:
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)
+            logger.debug(
+                f"Successfully deleted S3 DataFrame object {s3_key} from {self.bucket_name} for key '{key}'"
+            )
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                logger.debug(
+                    f"Attempted to delete non-existent S3 DataFrame object {s3_key}. No action."
+                )
+            else:
+                logger.warning(f"Error deleting S3 DataFrame object {s3_key}: {e}", exc_info=True)
                 raise
