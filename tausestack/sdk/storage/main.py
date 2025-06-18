@@ -167,8 +167,8 @@ _backend = _get_backend_instance()
 
 # The type ignore is used because _get_backend_instance returns a Union,
 # but LocalStorage and S3Storage implement all necessary abstract backends.
-json = JsonStorageClient(backend=_backend)  # type: ignore
-binary = BinaryStorageClient(backend=_backend)  # type: ignore
-dataframe = (
+json_client = JsonStorageClient(backend=_backend)  # type: ignore
+binary_client = BinaryStorageClient(backend=_backend)  # type: ignore
+dataframe_client = (
     DataFrameStorageClient(backend=_backend) if PANDAS_AVAILABLE else None  # type: ignore
 )

@@ -16,3 +16,4 @@ postgres_data/
 
 # Virtual environment
 .venv/
+.tausestack_storage/
