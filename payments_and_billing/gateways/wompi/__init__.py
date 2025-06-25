@@ -1,0 +1,1 @@
+# Initializes the wompi package

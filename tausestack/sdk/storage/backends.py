@@ -45,6 +45,16 @@ class LocalStorage(
             f"Binary path: {self.base_binary_path}, DataFrame path: {self.base_dataframe_path}"
         )
 
+    def _validate_key(self, key: str):
+        """Validate key format for security."""
+        import re
+        # Put the dash at the end to avoid range interpretation
+        key_regex = re.compile(r'^[a-zA-Z0-9._/-]+$')
+        if not key_regex.match(key):
+            raise ValueError(f"Invalid key format: '{key}'. Must match regex ^[a-zA-Z0-9._/-]+$")
+        if key.startswith('/') or '..' in key:
+            raise ValueError(f"Invalid key: '{key}'. No absolute paths or '..' allowed")
+
     # --- JSON Methods --- 
     def _get_json_file_path(self, key: str) -> Path:
         path_key = Path(key)
@@ -53,6 +63,7 @@ class LocalStorage(
         return self.base_json_path / path_key
 
     def get_json(self, key: str) -> Optional[Dict[str, Any]]:
+        self._validate_key(key)
         file_path = self._get_json_file_path(key)
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -65,6 +76,8 @@ class LocalStorage(
             return None # Or re-raise as a custom storage exception
 
     def put_json(self, key: str, value: Dict[str, Any]) -> None:
+        self._validate_key(key)
+        self._validate_key(key)
         file_path = self._get_json_file_path(key)
         file_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -76,6 +89,7 @@ class LocalStorage(
             raise
 
     def delete_json(self, key: str) -> None:
+        self._validate_key(key)
         file_path = self._get_json_file_path(key)
         try:
             os.remove(file_path)
@@ -94,6 +108,7 @@ class LocalStorage(
         return self.base_binary_path / Path(key)
 
     def get_binary(self, key: str) -> Optional[bytes]:
+        self._validate_key(key)
         file_path = self._get_binary_file_path(key)
         try:
             with open(file_path, 'rb') as f:
@@ -106,6 +121,7 @@ class LocalStorage(
             raise
 
     def put_binary(self, key: str, value: bytes, content_type: Optional[str] = None) -> None:
+        self._validate_key(key)
         # content_type is ignored for local storage but kept for interface consistency
         file_path = self._get_binary_file_path(key)
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,6 +134,7 @@ class LocalStorage(
             raise
 
     def delete_binary(self, key: str) -> None:
+        self._validate_key(key)
         file_path = self._get_binary_file_path(key)
         try:
             os.remove(file_path)
@@ -139,6 +156,7 @@ class LocalStorage(
         return self.base_dataframe_path / path_key
 
     def get_dataframe(self, key: str) -> Optional["pd.DataFrame"]:
+        self._validate_key(key)
         file_path = self._get_dataframe_file_path(key)
         try:
             return pd.read_parquet(file_path)
@@ -153,6 +171,7 @@ class LocalStorage(
             raise
 
     def put_dataframe(self, key: str, value: "pd.DataFrame") -> None:
+        self._validate_key(key)
         file_path = self._get_dataframe_file_path(key)
         file_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -166,6 +185,7 @@ class LocalStorage(
             raise
 
     def delete_dataframe(self, key: str) -> None:
+        self._validate_key(key)
         file_path = self._get_dataframe_file_path(key)
         try:
             os.remove(file_path)
@@ -207,6 +227,16 @@ class S3Storage(
         self.s3_client = s3_client if s3_client else boto3.client('s3')
         logger.debug(f"S3Storage initialized for bucket: {self.bucket_name}. Custom S3 client: {s3_client is not None}")
 
+    def _validate_key(self, key: str):
+        """Validate key format for security."""
+        import re
+        # Put the dash at the end to avoid range interpretation
+        key_regex = re.compile(r'^[a-zA-Z0-9._/-]+$')
+        if not key_regex.match(key):
+            raise ValueError(f"Invalid key format: '{key}'. Must match regex ^[a-zA-Z0-9._/-]+$")
+        if key.startswith('/') or '..' in key:
+            raise ValueError(f"Invalid key: '{key}'. No absolute paths or '..' allowed")
+
     # --- JSON Methods --- 
     def _get_json_s3_key(self, key: str) -> str:
         s3_key = key.lstrip('/') 
@@ -215,6 +245,7 @@ class S3Storage(
         return s3_key
 
     def get_json(self, key: str) -> Optional[Dict[str, Any]]:
+        self._validate_key(key)
         s3_key = self._get_json_s3_key(key)
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
@@ -231,6 +262,7 @@ class S3Storage(
             raise # Or return None / custom exception
 
     def put_json(self, key: str, value: Dict[str, Any]) -> None:
+        self._validate_key(key)
         s3_key = self._get_json_s3_key(key)
         try:
             json_string = json.dumps(value, indent=4, ensure_ascii=False)
@@ -249,6 +281,7 @@ class S3Storage(
             raise
 
     def delete_json(self, key: str) -> None:
+        self._validate_key(key)
         s3_key = self._get_json_s3_key(key)
         try:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)
@@ -266,6 +299,7 @@ class S3Storage(
         return key.lstrip('/')
 
     def get_binary(self, key: str) -> Optional[bytes]:
+        self._validate_key(key)
         s3_key = self._get_binary_s3_key(key)
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
@@ -278,6 +312,7 @@ class S3Storage(
             raise
 
     def put_binary(self, key: str, value: bytes, content_type: Optional[str] = None) -> None:
+        self._validate_key(key)
         s3_key = self._get_binary_s3_key(key)
         extra_args = {}
         if content_type:
@@ -296,6 +331,7 @@ class S3Storage(
             raise
 
     def delete_binary(self, key: str) -> None:
+        self._validate_key(key)
         s3_key = self._get_binary_s3_key(key)
         try:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)
@@ -317,6 +353,7 @@ class S3Storage(
         return s3_key
 
     def get_dataframe(self, key: str) -> Optional["pd.DataFrame"]:
+        self._validate_key(key)
         s3_key = self._get_dataframe_s3_key(key)
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
@@ -341,6 +378,7 @@ class S3Storage(
             raise
 
     def put_dataframe(self, key: str, value: "pd.DataFrame") -> None:
+        self._validate_key(key)
         s3_key = self._get_dataframe_s3_key(key)
         try:
             buffer = BytesIO()
@@ -368,6 +406,7 @@ class S3Storage(
             raise
 
     def delete_dataframe(self, key: str) -> None:
+        self._validate_key(key)
         s3_key = self._get_dataframe_s3_key(key)
         try:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)

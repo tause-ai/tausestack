@@ -1,7 +1,7 @@
 import pytest
 import json
 
-from services.storage import serializers
+from tausestack.sdk.storage import serializers
 
 @pytest.mark.parametrize("text", ["hola mundo", "áéíóú üñ ç", "", "123"])
 def test_serialize_deserialize_text(text):

@@ -43,6 +43,12 @@ storage-df = [
 storage-s3 = [
     "boto3>=1.20.0"
 ]
+storage-gcs = [
+    "google-cloud-storage>=2.0.0"
+]
+storage-supabase = [
+    "supabase>=1.0.0"
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -56,7 +62,9 @@ dev = [
 ]
 full = [
     "tausestack[storage-df]",
-    "tausestack[storage-s3]"
+    "tausestack[storage-s3]",
+    "tausestack[storage-gcs]",
+    "tausestack[storage-supabase]"
 ]
 
 [project.urls]

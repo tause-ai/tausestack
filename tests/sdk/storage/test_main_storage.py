@@ -29,7 +29,9 @@ def manage_global_json_client(temp_storage_path: Path):
 
     env_vars = {
         "TAUSESTACK_STORAGE_BACKEND": "local",
-        "TAUSESTACK_LOCAL_STORAGE_PATH": str(temp_storage_path)
+        "TAUSESTACK_LOCAL_JSON_STORAGE_PATH": str(temp_storage_path / "json"),
+        "TAUSESTACK_LOCAL_BINARY_STORAGE_PATH": str(temp_storage_path / "binary"),
+        "TAUSESTACK_LOCAL_DATAFRAME_STORAGE_PATH": str(temp_storage_path / "dataframe")
     }
 
     with patch.dict(os.environ, env_vars):
@@ -64,7 +66,7 @@ def test_json_client_put_and_get(temp_storage_path: Path):
 
     client.put(key, data)
 
-    expected_file = temp_storage_path / (key + ".json")
+    expected_file = temp_storage_path / "json" / (key + ".json")
     assert expected_file.exists()
     with open(expected_file, 'r', encoding='utf-8') as f:
         stored_data = json.load(f)
@@ -86,7 +88,7 @@ def test_json_client_delete(temp_storage_path: Path):
     data = {"status": "ephemeral"}
 
     client.put(key, data)
-    expected_file = temp_storage_path / (key + ".json")
+    expected_file = temp_storage_path / "json" / (key + ".json")
     assert expected_file.exists() # Confirm creation
 
     client.delete(key)
@@ -106,7 +108,7 @@ def test_json_client_put_overwrite(temp_storage_path: Path):
     client.put(key, updated_data)
     assert client.get(key) == updated_data
 
-    expected_file = temp_storage_path / (key + ".json")
+    expected_file = temp_storage_path / "json" / (key + ".json")
     with open(expected_file, 'r', encoding='utf-8') as f:
         stored_data = json.load(f)
     assert stored_data == updated_data
@@ -119,7 +121,7 @@ def test_json_client_nested_key_paths(temp_storage_path: Path):
 
     client.put(key, data)
 
-    expected_file = temp_storage_path / "nested" / "path" / "to" / "data.json"
+    expected_file = temp_storage_path / "json" / "nested" / "path" / "to" / "data.json"
     assert expected_file.exists()
     with open(expected_file, 'r', encoding='utf-8') as f:
         stored_data = json.load(f)

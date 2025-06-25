@@ -160,6 +160,89 @@ def _get_backend_instance() -> StorageBackend:
 # but LocalStorage and S3Storage implement both AbstractJsonStorageBackend and AbstractBinaryStorageBackend.
 
 
+# --- Unified Storage Manager ---
+
+class StorageManager:
+    """
+    Unified storage manager that provides access to JSON, binary, and DataFrame storage.
+    This is the main entry point for storage operations.
+    """
+    
+    def __init__(self, backend: Optional[StorageBackend] = None):
+        """
+        Initialize the storage manager.
+        
+        Args:
+            backend: Optional storage backend. If None, uses the default backend from environment.
+        """
+        self._backend = backend or _get_backend_instance()
+        self._json_client = JsonStorageClient(backend=self._backend)  # type: ignore
+        self._binary_client = BinaryStorageClient(backend=self._backend)  # type: ignore
+        self._dataframe_client = (
+            DataFrameStorageClient(backend=self._backend) if PANDAS_AVAILABLE else None  # type: ignore
+        )
+        logger.debug(f"StorageManager initialized with backend: {type(self._backend).__name__}")
+    
+    # JSON methods
+    def get_json(self, key: str) -> Optional[Dict[str, Any]]:
+        """Get a JSON object from storage."""
+        return self._json_client.get(key)
+    
+    def put_json(self, key: str, value: Dict[str, Any]) -> None:
+        """Store a JSON object in storage."""
+        self._json_client.put(key, value)
+    
+    def delete_json(self, key: str) -> None:
+        """Delete a JSON object from storage."""
+        self._json_client.delete(key)
+    
+    # Binary methods
+    def get_binary(self, key: str) -> Optional[bytes]:
+        """Get binary data from storage."""
+        return self._binary_client.get(key)
+    
+    def put_binary(self, key: str, value: bytes, content_type: Optional[str] = None) -> None:
+        """Store binary data in storage."""
+        self._binary_client.put(key, value, content_type)
+    
+    def delete_binary(self, key: str) -> None:
+        """Delete binary data from storage."""
+        self._binary_client.delete(key)
+    
+    # DataFrame methods (if pandas is available)
+    def get_dataframe(self, key: str) -> Optional["pd.DataFrame"]:
+        """Get a DataFrame from storage."""
+        if not self._dataframe_client:
+            raise ImportError("pandas and pyarrow are required for DataFrame operations")
+        return self._dataframe_client.get(key)
+    
+    def put_dataframe(self, key: str, value: "pd.DataFrame") -> None:
+        """Store a DataFrame in storage."""
+        if not self._dataframe_client:
+            raise ImportError("pandas and pyarrow are required for DataFrame operations")
+        self._dataframe_client.put(key, value)
+    
+    def delete_dataframe(self, key: str) -> None:
+        """Delete a DataFrame from storage."""
+        if not self._dataframe_client:
+            raise ImportError("pandas and pyarrow are required for DataFrame operations")
+        self._dataframe_client.delete(key)
+    
+    @property
+    def json(self) -> JsonStorageClient:
+        """Access to JSON storage client."""
+        return self._json_client
+    
+    @property
+    def binary(self) -> BinaryStorageClient:
+        """Access to binary storage client."""
+        return self._binary_client
+    
+    @property
+    def dataframe(self) -> Optional[DataFrameStorageClient]:
+        """Access to DataFrame storage client (if pandas is available)."""
+        return self._dataframe_client
+
 # --- Public API ---
 
 # The public client instances that applications will import and use.
@@ -172,3 +255,6 @@ binary_client = BinaryStorageClient(backend=_backend)  # type: ignore
 dataframe_client = (
     DataFrameStorageClient(backend=_backend) if PANDAS_AVAILABLE else None  # type: ignore
 )
+
+# Default storage manager instance
+storage_manager = StorageManager()

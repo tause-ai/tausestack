@@ -15,12 +15,23 @@
 
 TauseStack es un framework modular y flexible diseñado para acelerar el desarrollo de aplicaciones web, CRMs, e-commerce, chatbots y agentes IA. Construido con tecnologías modernas y siguiendo las mejores prácticas de la industria, proporciona una base sólida para proyectos de cualquier escala.
 
-- **Modularidad:** Arquitectura basada en módulos independientes pero integrables
-- **CLI potente:** Automatiza tareas comunes
+- **SDK Completo:** Autenticación, storage, database, cache, notificaciones
+- **CLI potente:** Automatiza tareas comunes de desarrollo y despliegue
 - **Templates preconstruidos:** Para distintos tipos de aplicaciones
 - **Stack moderno:** FastAPI, Next.js, Docker, TypeScript
+- **Arquitectura limpia:** Patrones hexagonales y backends intercambiables
 - **Calidad de código:** Linters, formateadores y pruebas automatizadas
 - **Documentación completa:** Para desarrolladores y usuarios finales
+
+## 🎯 Características Principales
+
+### SDK Modular
+- **Auth:** Firebase Admin, backends personalizables
+- **Storage:** Local, S3, GCS, Supabase con soporte JSON/Binary/DataFrame
+- **Database:** SQLAlchemy con migraciones Alembic
+- **Cache:** Memory, Disk, Redis
+- **Notificaciones:** Console, File, SES
+- **Secrets:** Variables de entorno, AWS Secrets Manager
 
 ---
 
@@ -123,8 +134,51 @@ Una vez que el [CLI de TauseStack esté instalado](#instalación-del-cli) y tu e
 
 Consulta `PROJECT_STRUCTURE.md` para más detalles sobre la estructura generada.
 
-## Estructura del proyecto
-Ver documentación en `/docs` y comentarios en cada carpeta.
+## 📁 Estructura del Proyecto
+
+```
+tausestack/
+├── cli/                 # Command Line Interface
+├── framework/           # Core framework components
+├── sdk/                 # Software Development Kit
+│   ├── auth/           # Authentication backends
+│   ├── cache/          # Caching systems
+│   ├── database/       # Database adapters
+│   ├── gateways/       # Payment gateways (Wompi, etc.)
+│   ├── notify/         # Notification systems
+│   ├── secrets/        # Secret management
+│   └── storage/        # Storage backends
+├── templates/          # Project templates
+├── services/           # Microservices
+└── tests/             # Test suite
+```
+
+### Uso del SDK
+
+```python
+from tausestack.sdk.storage.main import StorageManager
+from tausestack.sdk.auth.main import AuthManager
+from tausestack.sdk.cache.main import CacheManager
+
+# Storage con múltiples backends
+storage = StorageManager()
+storage.put_json("user/123", {"name": "John", "email": "john@example.com"})
+storage.put_binary("files/image.jpg", image_bytes)
+
+# También puedes acceder a clientes específicos
+user_data = storage.json.get("user/123")
+file_data = storage.binary.get("files/image.jpg")
+
+# Autenticación
+auth = AuthManager()
+user = await auth.verify_token(token)
+
+# Cache
+cache = CacheManager()
+await cache.set("key", "value", ttl=3600)
+```
+
+Ver documentación completa en `/docs` y `ESTRUCTURA_RECOMENDADA.md`.
 
 ## Licencia
 Este proyecto está bajo la licencia MIT. Consulta el archivo [LICENSE](LICENSE) y la [documentación de licencia](docs/about/license.md) para más información.
