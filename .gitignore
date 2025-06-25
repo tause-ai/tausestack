@@ -1,6 +1,8 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
 .env
 .env.*
 
@@ -16,4 +18,26 @@ postgres_data/
 
 # Virtual environment
 .venv/
+venv/
 .tausestack_storage/
+.tmp_test_storage/
+
+# Testing and cache
+.pytest_cache/
+.ruff_cache/
+*.db
+*.sqlite
+*.sqlite3
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# IDE
+.idea/
+*.swp
+*.swo
