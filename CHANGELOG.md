@@ -5,6 +5,27 @@ Todos los cambios notables en este proyecto se documentarán en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-01-02
+
+### Optimización y Limpieza
+- **LIMPIEZA MASIVA**: Eliminación de 800MB de archivos innecesarios (-44% tamaño total)
+- Eliminados directorios duplicados: `ui/` (345MB), `venv/` (451MB), `payments_and_billing/`, `cli/` obsoleto
+- Eliminados archivos temporales: `*.db`, `*.tmp`, `.DS_Store`, cache directories
+- Eliminado directorio `shared/` vacío y `cli_test_area/` de pruebas
+- Actualizado `.gitignore` con patrones completos para prevenir archivos innecesarios
+
+### Mejorado
+- Estructura del proyecto optimizada sin duplicaciones
+- Rendimiento mejorado en builds y deployments
+- Mantenibilidad del código aumentada
+- Claridad en la organización de archivos
+
+### Eliminado
+- 21 archivos duplicados o innecesarios
+- CLI obsoleto (mantenido el moderno en `tausestack/cli/`)
+- Directorios de cache y temporales
+- Implementación duplicada de Wompi payments (consolidada en SDK)
+
 ## [0.4.0] - 2025-01-01
 
 ### Refactorización Mayor
