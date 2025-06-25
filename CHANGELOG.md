@@ -5,7 +5,7 @@ Todos los cambios notables en este proyecto se documentarán en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1] - 2025-01-02
+## [0.4.1] - 2024-06-24
 
 ### Optimización y Limpieza
 - **LIMPIEZA MASIVA**: Eliminación de 800MB de archivos innecesarios (-44% tamaño total)
@@ -26,7 +26,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Directorios de cache y temporales
 - Implementación duplicada de Wompi payments (consolidada en SDK)
 
-## [0.4.0] - 2025-01-01
+## [0.4.0] - 2024-06-23
 
 ### Refactorización Mayor
 - **BREAKING CHANGE**: Consolidación completa de la arquitectura del SDK
@@ -61,21 +61,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Consolidación de serializers en `tausestack/sdk/storage/serializers.py`
 - Backends de storage con validación consistente
 
-## [0.3.0] - 2025-05-20
+## [0.3.0] - 2024-05-20
 
 ### Mejorado
 - Pruebas de integración para orquestación multiagente
 - Soporte mejorado para autenticación JWT
 - Documentación actualizada
 
-## [0.2.0] - 2025-05-15
+## [0.2.0] - 2024-05-15
 
 ### Añadido
 - Soporte inicial para MCP (Model-Controller-Presenter)
 - Federación básica entre MCPs
 - Documentación de la API
 
-## [0.1.0] - 2025-04-29
+## [0.1.0] - 2024-04-29
 
 ### Añadido
 - Estructura básica del framework
