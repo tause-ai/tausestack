@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Analytics Service - Multi-Tenant API
-TauseStack v2.0
+TauseStack v0.5.0
 
 Servicio de analytics con aislamiento completo por tenant.
 Implementa:
@@ -247,7 +247,7 @@ async def initialize_default_configs():
 app = FastAPI(
     title="Analytics Service - Multi-Tenant",
     description="Servicio de analytics con aislamiento completo por tenant",
-    version="2.0.0",
+    version="0.5.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc"
@@ -598,7 +598,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "analytics-mt",
-        "version": "2.0.0",
+        "version": "0.5.0",
         "timestamp": datetime.utcnow().isoformat(),
         "multi_tenant_enabled": is_multi_tenant_enabled(),
         "tenants_configured": len(analytics_storage.tenant_configs)

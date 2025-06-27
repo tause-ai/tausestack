@@ -1,14 +1,14 @@
 # TauseStack
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ---
 
 ## 🚀 Resumen Ejecutivo
 
-**Versión:** 0.1.0  
-**Fecha:** 2025-04-29  
+**Versión:** 0.5.0  
+**Fecha:** 2024-06-27  
 **Repositorio:** [github.com/felipetause/tausestack](https://github.com/felipetause/tausestack)  
 **Documentación:** [docs.tause.co](https://docs.tause.co)  
 **Contacto:** [felipe@tause.co](mailto:felipe@tause.co)
@@ -38,7 +38,7 @@ TauseStack es un framework modular y flexible diseñado para acelerar el desarro
 **Autor:** [Felipe Tause](https://www.tause.co)  
 **Contacto:** [felipe@tause.co](mailto:felipe@tause.co)  
 **Documentación:** [docs.tause.co](https://docs.tause.co)  
-**Versión:** 0.1.0
+**Versión:** 0.5.0
 
 ## Requisitos
 - Docker y Docker Compose

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo Integral de Servicios Multi-Tenant TauseStack v2.0
+Demo Integral de Servicios Multi-Tenant TauseStack v0.5.0
 
 Esta demo muestra TODOS los servicios multi-tenant funcionando juntos:
 - MCP Server v2.0 - Tools dinámicos y resources por tenant
@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 import uuid
 
-print("🚀 TauseStack v2.0 - Demo Integral de Servicios Multi-Tenant")
+print("🚀 TauseStack v0.5.0 - Demo Integral de Servicios Multi-Tenant")
 print("=" * 80)
 print("🎯 Esta demo muestra TODOS los servicios funcionando juntos")
 print("=" * 80)
@@ -723,7 +723,7 @@ async def main():
         print("  🔥 Production deployment - Docker + K8s")
         
         print(f"\n💪 Progreso hacia arquitectura completa: ~90%")
-        print("🎉 TauseStack v2.0 - Arquitectura Multi-Tenant de Clase Enterprise")
+        print("🎉 TauseStack v0.5.0 - Arquitectura Multi-Tenant de Clase Enterprise")
         
     except Exception as e:
         print(f"\n❌ Error en demo integral: {e}")

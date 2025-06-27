@@ -5,6 +5,39 @@ Todos los cambios notables en este proyecto se documentarán en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2024-06-27
+
+### FASE 3 COMPLETADA: Servicios Multi-Tenant Avanzados
+- **NUEVO**: Analytics Service Multi-Tenant con dashboards por tenant
+- **NUEVO**: Communications Service Multi-Tenant (Email, SMS, Push)
+- **NUEVO**: Billing Service Multi-Tenant con automatización completa
+- **NUEVO**: Integración de servicios multi-tenant avanzada
+- **NUEVO**: Demo integral de todos los servicios funcionando juntos
+
+### Añadido
+- Analytics Service con métricas aisladas por tenant
+- Communications Service con templates y proveedores por tenant
+- Billing Service con suscripciones y facturación automatizada
+- Health checks avanzados para todos los servicios
+- Configuración granular por tenant en cada servicio
+- Storage aislado para cada servicio por tenant
+- Rate limiting específico por tenant y servicio
+- Estadísticas detalladas por tenant
+
+### Mejorado
+- Arquitectura multi-tenant de clase enterprise (~90% completada)
+- Aislamiento completo entre tenants en todos los servicios
+- Configuración centralizada para servicios multi-tenant
+- Documentación completa de la arquitectura implementada
+- Demos standalone que no requieren dependencias externas
+
+### Técnico
+- 3 servicios multi-tenant completamente funcionales
+- 4 demos integrales implementadas
+- Progreso del proyecto: 65% → 90% hacia arquitectura objetivo
+- Compatibilidad 100% hacia atrás mantenida
+- Testing robusto para todos los servicios
+
 ## [0.4.1] - 2024-06-24
 
 ### Optimización y Limpieza

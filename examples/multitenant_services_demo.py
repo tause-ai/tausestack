@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo Servicios Multi-Tenant TauseStack v2.0
+Demo Servicios Multi-Tenant TauseStack v0.5.0
 
 Esta demo muestra los servicios avanzados multi-tenant funcionando juntos:
 - Analytics Service: Métricas y dashboards por tenant
@@ -558,7 +558,7 @@ async def demo_performance_metrics():
 
 async def main():
     """Ejecutar demo completa de servicios multi-tenant."""
-    print("🚀 TauseStack v2.0 - Demo Servicios Multi-Tenant Avanzados")
+    print("🚀 TauseStack v0.5.0 - Demo Servicios Multi-Tenant Avanzados")
     print("=" * 70)
     print("📝 Esta demo muestra Analytics y Communications Services funcionando juntos")
     print("=" * 70)

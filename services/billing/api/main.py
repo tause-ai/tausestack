@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Billing Service - Multi-Tenant API
-TauseStack v2.0
+TauseStack v0.5.0
 
 Servicio de facturación con aislamiento completo por tenant.
 Implementa:
@@ -433,7 +433,7 @@ async def initialize_default_subscriptions():
 app = FastAPI(
     title="Billing Service - Multi-Tenant",
     description="Servicio de facturación con aislamiento completo por tenant",
-    version="2.0.0",
+    version="0.5.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc"
@@ -857,7 +857,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "billing-mt",
-        "version": "2.0.0",
+        "version": "0.5.0",
         "timestamp": datetime.utcnow().isoformat(),
         "tenants_configured": len(billing_storage.tenant_configs),
         "total_subscriptions": total_subscriptions,

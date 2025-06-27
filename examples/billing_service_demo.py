@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo Billing Service Multi-Tenant TauseStack v2.0
+Demo Billing Service Multi-Tenant TauseStack v0.5.0
 
 Esta demo muestra el servicio de facturación multi-tenant:
 - Subscription management por tenant
@@ -640,7 +640,7 @@ async def demo_performance_metrics(billing: MockBillingService):
 
 async def main():
     """Ejecutar demo completa del Billing Service."""
-    print("🚀 TauseStack v2.0 - Demo Billing Service Multi-Tenant")
+    print("🚀 TauseStack v0.5.0 - Demo Billing Service Multi-Tenant")
     print("=" * 70)
     print("💳 Esta demo muestra el servicio de facturación multi-tenant completo")
     print("=" * 70)
