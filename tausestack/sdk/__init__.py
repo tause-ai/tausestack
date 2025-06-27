@@ -8,9 +8,73 @@ _sdk_logger = logging.getLogger(__name__) # __name__ will be 'tausestack.sdk'
 if not _sdk_logger.hasHandlers():
     _sdk_logger.addHandler(logging.NullHandler())
 
-# TauseStack SDK
+# Tausestack SDK - Main Module
 
-# Import and expose sub-modules or specific clients
+# Import all SDK modules
+from . import storage
+from . import secrets  
+from . import cache
+from . import notify
+from . import auth
+from . import database
+
+# Import tenancy module for multi-tenant support
+from . import tenancy
+
+# Import isolation module for multi-tenant isolation
+from . import isolation
+
+# For backward compatibility, expose main interfaces at top level
+from .storage import json, binary, dataframe
+from .secrets import get as secrets_get
+from .cache import cached
+from .notify import send_email
+from .auth import get_current_user, require_auth
+from .database import Model, ItemID
+
+# Expose tenancy for multi-tenant capabilities
+from .tenancy import tenancy, get_current_tenant_id, get_tenant_config, is_multi_tenant_enabled
+
+# Expose isolation for multi-tenant isolation
+from .isolation import isolation as isolation_manager, get_current_isolation_config, isolate_path, isolate_cache_key, check_limits
+
+__version__ = "2.0.0"
+
+__all__ = [
+    # Core modules
+    "storage",
+    "secrets", 
+    "cache",
+    "notify",
+    "auth", 
+    "database",
+    
+    # Multi-tenant support
+    "tenancy",
+    "get_current_tenant_id",
+    "get_tenant_config", 
+    "is_multi_tenant_enabled",
+    
+    # Multi-tenant isolation
+    "isolation",
+    "isolation_manager",
+    "get_current_isolation_config",
+    "isolate_path",
+    "isolate_cache_key", 
+    "check_limits",
+    
+    # Backward compatibility - direct access
+    "json",           # storage.json
+    "binary",         # storage.binary  
+    "dataframe",      # storage.dataframe
+    "secrets_get",    # secrets.get
+    "cached",         # cache.cached
+    "send_email",     # notify.send_email
+    "get_current_user",  # auth.get_current_user
+    "require_auth",   # auth.require_auth
+    "Model",          # database.Model
+    "ItemID",         # database.ItemID
+]
 
 # Option 1: Allow direct import of clients if preferred
 # from .storage import json_client as storage_json_client # Example alias
@@ -46,8 +110,16 @@ class NotifyNamespace:
 
 notify = NotifyNamespace()
 
-__all__ = [
-    'storage',
-    'secrets',
-    'notify',
-]
+class IsolationNamespace:
+    def __init__(self):
+        from .isolation import isolation as _isolation_manager
+        from .isolation.database_isolation import db_isolation
+        from .isolation.storage_isolation import storage_isolation
+        from .isolation.cache_isolation import cache_isolation
+        
+        self.manager = _isolation_manager
+        self.database = db_isolation
+        self.storage = storage_isolation
+        self.cache = cache_isolation
+
+isolation = IsolationNamespace()

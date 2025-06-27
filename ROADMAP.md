@@ -1,3 +1,26 @@
+"""
+Roadmap del Framework TauseStack
+
+Este documento rastrea el progreso del desarrollo del framework TauseStack, diseñado para igualar y superar la funcionalidad de la plataforma anterior construida en Databutton.
+
+Objetivo 1: Un Sólido Núcleo de Framework (Backend)
+- Formalizar la Base de FastAPI, establecer una estructura estándar de proyecto y gestionar dependencias.
+- Implementar un sistema de ruteo dinámico y configurable con TauseStackRouter.
+- Crear un middleware de autenticación central basado en sdk.auth.
+
+Objetivo 2: SDK de TauseStack Potenciado
+- Re-alcance del módulo sdk.auth con FirebaseAuthBackend y pruebas unitarias.
+- Creación del módulo sdk.database con integración SQLAlchemy.
+- Expansión del módulo sdk.storage para soportar archivos binarios y DataFrames.
+
+Objetivo 3: Experiencia de Desarrollador (DX) y Herramientas
+- Crear un CLI de TauseStack con comandos para inicializar, ejecutar y desplegar proyectos.
+- Documentación y ejemplos completos para mostrar el uso de todos los componentes del framework y SDK.
+
+Módulos del SDK Ya Implementados (Base)
+- sdk.storage (JSON), sdk.secrets, sdk.cache, sdk.notify completados.
+"""
+
 # Roadmap del Framework TauseStack
 
 Este documento rastrea el progreso del desarrollo del framework TauseStack, diseñado para igualar y superar la funcionalidad de la plataforma anterior construida en Databutton.
