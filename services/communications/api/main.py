@@ -374,7 +374,7 @@ async def initialize_default_templates():
 app = FastAPI(
     title="Communications Service - Multi-Tenant",
     description="Servicio de comunicaciones con aislamiento completo por tenant",
-    version="0.5.0",
+    version="0.6.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc"
@@ -717,7 +717,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "communications-mt",
-        "version": "0.5.0",
+        "version": "0.6.0",
         "timestamp": datetime.utcnow().isoformat(),
         "tenants_configured": len(communications_storage.tenant_configs),
         "total_messages": sum(len(messages) for messages in communications_storage.tenant_messages.values())

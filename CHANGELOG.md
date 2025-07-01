@@ -5,7 +5,86 @@ Todos los cambios notables en este proyecto se documentarán en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2024-06-27
+## [0.7.0] - 2025-06-28
+
+### 🎯 ARQUITECTURA HÍBRIDA IMPLEMENTADA: TauseStack + TausePro
+- **STRATEGIC PIVOT**: TauseStack como framework + TausePro como plataforma no-code
+- **SDK EXTERNAL**: Completo para builders externos como TausePro
+- **API-READY**: Endpoints preparados para consumption externa
+- **DEVELOPER EXPERIENCE**: SDK Python con types y async support completo
+
+### Añadido
+- **TauseStackBuilder**: Cliente principal para crear y gestionar aplicaciones vía API
+- **TemplateManager**: Gestión avanzada de templates con validación y metadata
+- **DeploymentManager**: Pipeline de deployment con monitoring y logs en tiempo real
+- **ExternalAuth**: Sistema completo de autenticación con API keys y JWT
+- **Demo TausePro**: Ejemplo completo de integración e-commerce y CRM
+- **API Endpoints**: `/api/v1/apps/*`, `/api/v1/templates/*`, `/api/v1/deploy/*`, `/api/v1/auth/*`
+
+### Mejorado
+- Arquitectura preparada para builders externos (~100% API-ready)
+- SDK con manejo robusto de errores y retry logic
+- Documentación de arquitectura híbrida completa
+- Estrategia de monetización dual framework + platform
+- Integration patterns para future TausePro platform
+
+### Técnico
+- **SDK Features**: Async context managers, streaming logs, health monitoring
+- **Dependencies**: httpx, PyJWT, email-validator, supabase integration
+- **API Design**: RESTful with OpenAPI/Swagger ready
+- **Error Handling**: Comprehensive exception handling with logging
+- **Security**: Role-based permissions, API key management, JWT refresh flow
+
+### Documentación
+- `ARQUITECTURA_HIBRIDA.md`: Strategic vision and implementation plan
+- `PLAN_IMPLEMENTACION_INMEDIATA.md`: 2-week roadmap toward v1.0.0
+- `examples/tausepro_integration_demo.py`: Complete integration example
+- Updated roadmap with parallel TauseStack + TausePro development
+
+---
+
+## [0.6.0] - 2025-06-28
+
+### FASE 4 COMPLETADA: UI y API Gateway
+- **NUEVO**: Admin UI completo con Next.js 15 y React 19
+- **NUEVO**: API Gateway unificado con rate limiting por tenant
+- **NUEVO**: Dashboard en tiempo real con métricas de todos los servicios
+- **NUEVO**: Gestión de tenants con interface web moderna
+- **NUEVO**: Sistema de proxy inteligente para todos los servicios backend
+
+### Añadido
+- Admin UI responsive con Tailwind CSS 4
+- API Gateway con proxy a Analytics, Communications, Billing y MCP
+- Dashboard con métricas en tiempo real y health checks
+- Gestión de tenants con estadísticas detalladas
+- Rate limiting granular por tenant y servicio
+- Script automatizado para lanzar todos los servicios (`scripts/start_services.py`)
+- Documentación completa del Admin UI
+- Navegación completa: Dashboard, Tenants, Services, Analytics, Gateway
+
+### Mejorado
+- Arquitectura multi-tenant completada (~95% hacia objetivo final)
+- Experiencia de usuario con interface web moderna
+- Monitoreo en tiempo real de todos los servicios
+- Gestión centralizada desde una sola interface
+- Dependencias actualizadas: PyJWT, email-validator, aiohttp
+
+### Técnico
+- Frontend: Next.js 15 + React 19 + TypeScript + Tailwind CSS 4
+- API Gateway: FastAPI con proxy HTTP y rate limiting
+- Métricas en tiempo real con actualización automática cada 30s
+- Health monitoring de todos los servicios backend
+- Progreso del proyecto: 90% → 95% hacia arquitectura objetivo
+
+### URLs del Sistema
+- Admin UI: http://localhost:3000
+- API Gateway: http://localhost:9001
+- Analytics Service: http://localhost:8001
+- Communications Service: http://localhost:8002
+- Billing Service: http://localhost:8003
+- MCP Server: http://localhost:8000
+
+## [0.5.0] - 2025-06-27
 
 ### FASE 3 COMPLETADA: Servicios Multi-Tenant Avanzados
 - **NUEVO**: Analytics Service Multi-Tenant con dashboards por tenant
@@ -38,7 +117,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Compatibilidad 100% hacia atrás mantenida
 - Testing robusto para todos los servicios
 
-## [0.4.1] - 2024-06-24
+## [0.4.1] - 2025-06-24
 
 ### Optimización y Limpieza
 - **LIMPIEZA MASIVA**: Eliminación de 800MB de archivos innecesarios (-44% tamaño total)
@@ -59,7 +138,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Directorios de cache y temporales
 - Implementación duplicada de Wompi payments (consolidada en SDK)
 
-## [0.4.0] - 2024-06-23
+## [0.4.0] - 2025-06-23
 
 ### Refactorización Mayor
 - **BREAKING CHANGE**: Consolidación completa de la arquitectura del SDK

@@ -6,5 +6,5 @@ Servicio de facturación y suscripciones con aislamiento completo por tenant.
 Implementa patrones de microservicios y arquitectura serverless.
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 __service__ = "billing-mt" 

@@ -38,7 +38,7 @@ from .tenancy import tenancy, get_current_tenant_id, get_tenant_config, is_multi
 # Expose isolation for multi-tenant isolation
 from .isolation import isolation as isolation_manager, get_current_isolation_config, isolate_path, isolate_cache_key, check_limits
 
-__version__ = "0.5.0"
+__version__ = "0.7.0"
 
 __all__ = [
     # Core modules
