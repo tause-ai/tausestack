@@ -53,6 +53,12 @@ SERVICES_CONFIG = {
         "health_endpoint": "/health",
         "rate_limit": 1000,
         "timeout": 30
+    },
+    "ai_services": {
+        "url": "http://localhost:8005",
+        "health_endpoint": "/health",
+        "rate_limit": 500,  # Límite más bajo para IA por costos
+        "timeout": 60  # Timeout más alto para generación de IA
     }
 }
 
@@ -423,6 +429,51 @@ async def templates_proxy(path: str, request: Request):
     except Exception as e:
         logger.error(f"Templates proxy error: {str(e)}")
         raise HTTPException(status_code=500, detail="Templates service error")
+
+@app.api_route("/ai/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def ai_services_proxy(path: str, request: Request):
+    """Proxy para AI Services con rate limiting especial."""
+    tenant_id = get_tenant_id(request)
+    
+    # Rate limiting más estricto para IA
+    if not check_rate_limit(tenant_id, "ai_services"):
+        raise HTTPException(
+            status_code=429, 
+            detail=f"Rate limit exceeded for tenant {tenant_id} on AI services"
+        )
+    
+    # Obtener cuerpo del request
+    body = await request.body() if request.method in ["POST", "PUT", "PATCH"] else None
+    
+    # Headers del request
+    headers = dict(request.headers)
+    
+    # Query parameters
+    params = dict(request.query_params)
+    
+    # Registrar uso por tenant
+    gateway_metrics["tenant_usage"][tenant_id] += 1
+    
+    try:
+        result = await forward_request(
+            "ai_services", 
+            f"/{path}", 
+            request.method, 
+            headers, 
+            body, 
+            params
+        )
+        
+        return Response(
+            content=result["content"],
+            status_code=result["status_code"],
+            headers={k: v for k, v in result["headers"].items() if k.lower() not in ['content-encoding', 'content-length']},
+            media_type="application/json"
+        )
+        
+    except Exception as e:
+        logger.error(f"AI Services proxy error for tenant {tenant_id}: {str(e)}")
+        raise
 
 # === RUTAS DE ADMINISTRACIÓN ===
 
