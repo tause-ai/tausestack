@@ -47,6 +47,12 @@ SERVICES_CONFIG = {
         "health_endpoint": "/health",
         "rate_limit": 2000,
         "timeout": 45
+    },
+    "templates": {
+        "url": "http://localhost:8004",
+        "health_endpoint": "/health",
+        "rate_limit": 1000,
+        "timeout": 30
     }
 }
 
@@ -383,6 +389,40 @@ async def mcp_proxy(path: str, request: Request):
         status_code=result["status_code"],
         headers={k: v for k, v in result["headers"].items() if k.lower() not in ['content-length', 'transfer-encoding']}
     )
+
+@app.api_route("/templates/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def templates_proxy(path: str, request: Request):
+    """Proxy para Template Engine API."""
+    tenant_id = get_tenant_id(request)
+    
+    # Rate limiting
+    if not check_rate_limit(tenant_id, "templates"):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    
+    # Actualizar métricas de tenant
+    gateway_metrics["tenant_usage"][tenant_id] += 1
+    
+    # Preparar datos del request
+    headers = dict(request.headers)
+    body = await request.body() if request.method in ["POST", "PUT", "PATCH"] else None
+    params = dict(request.query_params)
+    
+    # Agregar tenant_id a headers
+    headers["X-Tenant-ID"] = tenant_id
+    
+    try:
+        result = await forward_request("templates", f"/{path}", request.method, headers, body, params)
+        
+        return Response(
+            content=result["content"],
+            status_code=result["status_code"],
+            headers={k: v for k, v in result["headers"].items() if k.lower() not in ['content-length', 'transfer-encoding']}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Templates proxy error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Templates service error")
 
 # === RUTAS DE ADMINISTRACIÓN ===
 
